@@ -1,17 +1,13 @@
 import { getDB } from '../db/init.js';
 import { v4 as uuidv4 } from 'uuid';
+import { getMonthDateRange, getCurrentYearMonth, getPreviousMonth } from '../utils/date.js';
 
 export default async function budgetsRoutes(fastify, options) {
   // Get all budgets with current spending
   fastify.get('/', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const db = getDB();
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-    const lastDay = new Date(year, month, 0).getDate(); // Correct last day of month
-    const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
-    const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+    const { year, month } = getCurrentYearMonth();
+    const { startDate, endDate } = getMonthDateRange(year, month);
 
     const budgets = db.prepare(`
       SELECT b.*, c.name as category_name, c.icon as category_icon, c.color as category_color
@@ -148,22 +144,11 @@ export default async function budgetsRoutes(fastify, options) {
   // Get insights/comparisons
   fastify.get('/insights', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const db = getDB();
-
     const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-    const prevMonth = month === 1 ? 12 : month - 1;
-    const prevYear = month === 1 ? year - 1 : year;
-
-    // Current month dates
-    const lastDayCurrent = new Date(year, month, 0).getDate();
-    const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
-    const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDayCurrent.toString().padStart(2, '0')}`;
-
-    // Previous month dates
-    const lastDayPrev = new Date(prevYear, prevMonth, 0).getDate();
-    const prevStartDate = `${prevYear}-${prevMonth.toString().padStart(2, '0')}-01`;
-    const prevEndDate = `${prevYear}-${prevMonth.toString().padStart(2, '0')}-${lastDayPrev.toString().padStart(2, '0')}`;
+    const { year, month } = getCurrentYearMonth();
+    const { startDate, endDate } = getMonthDateRange(year, month);
+    const prev = getPreviousMonth(year, month);
+    const { startDate: prevStartDate, endDate: prevEndDate } = getMonthDateRange(prev.year, prev.month);
 
     // Current month total
     const currentTotal = db.prepare(`

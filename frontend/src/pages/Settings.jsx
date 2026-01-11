@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { formatCurrency } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import BottomSheet from '../components/BottomSheet';
@@ -203,13 +204,6 @@ export default function Settings() {
     } catch (err) {
       alert(err.message);
     }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(amount);
   };
 
   const bankAccounts = accounts.filter(a => a.type === 'bank');

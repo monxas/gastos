@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { formatCurrency } from '../utils/format';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Tooltip } from 'recharts';
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -59,23 +60,6 @@ export default function Reports() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (amount, compact = false) => {
-    if (compact && Math.abs(amount) >= 1000) {
-      return new Intl.NumberFormat('es-ES', {
-        style: 'currency',
-        currency: 'EUR',
-        notation: 'compact',
-        maximumFractionDigits: 1
-      }).format(amount);
-    }
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
   };
 
   const prevMonth = () => setSelectedDate(subMonths(selectedDate, 1));

@@ -1,5 +1,6 @@
 import { getDB } from '../db/init.js';
 import { v4 as uuidv4 } from 'uuid';
+import { getMonthDateRange } from '../utils/date.js';
 
 export default async function expensesRoutes(fastify, options) {
   // Get expenses with filters
@@ -371,8 +372,7 @@ export default async function expensesRoutes(fastify, options) {
     }
 
     const db = getDB();
-    const startDate = `${year}-${month.padStart(2, '0')}-01`;
-    const endDate = `${year}-${month.padStart(2, '0')}-31`;
+    const { startDate, endDate } = getMonthDateRange(parseInt(year), parseInt(month));
 
     // Total by category
     const byCategory = db.prepare(`

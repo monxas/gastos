@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { formatCurrency } from '../utils/format';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import BottomSheet from '../components/BottomSheet';
@@ -26,21 +27,6 @@ function BackIcon() {
       <polyline points="15 18 9 12 15 6"></polyline>
     </svg>
   );
-}
-
-function formatCurrency(amount, compact = false) {
-  if (compact && Math.abs(amount) >= 1000) {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR',
-      notation: 'compact',
-      maximumFractionDigits: 1
-    }).format(amount);
-  }
-  return new Intl.NumberFormat('es-ES', {
-    style: 'currency',
-    currency: 'EUR'
-  }).format(amount);
 }
 
 export default function AccountDetail() {

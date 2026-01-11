@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { formatCurrency } from '../utils/format';
 import BottomSheet from '../components/BottomSheet';
 import QuickExpenseForm from '../components/QuickExpenseForm';
 import { format } from 'date-fns';
@@ -66,21 +67,6 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (amount, compact = false) => {
-    if (compact && Math.abs(amount) >= 1000) {
-      return new Intl.NumberFormat('es-ES', {
-        style: 'currency',
-        currency: 'EUR',
-        notation: 'compact',
-        maximumFractionDigits: 1
-      }).format(amount);
-    }
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(amount);
   };
 
   const currentMonth = format(now, 'MMMM yyyy', { locale: es });

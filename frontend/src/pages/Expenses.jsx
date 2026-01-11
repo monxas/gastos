@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { formatCurrency } from '../utils/format';
 import BottomSheet from '../components/BottomSheet';
 import ExpenseForm from '../components/ExpenseForm';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
@@ -116,13 +117,6 @@ export default function Expenses() {
     } catch (err) {
       alert(err.message);
     }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-ES', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(amount);
   };
 
   const formatDate = (dateStr) => {

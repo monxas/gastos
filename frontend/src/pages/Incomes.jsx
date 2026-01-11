@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { formatCurrency } from '../utils/format';
 import BottomSheet from '../components/BottomSheet';
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -107,10 +108,6 @@ export default function Incomes() {
       source: 'salary',
       note: ''
     });
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(amount);
   };
 
   const getSourceInfo = (source) => {
