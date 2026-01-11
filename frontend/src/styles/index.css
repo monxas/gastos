@@ -661,3 +661,194 @@ a {
 [data-theme="dark"] input[type="date"] {
   color-scheme: dark;
 }
+
+/* Dark mode text fixes for all elements */
+[data-theme="dark"] button {
+  color: var(--text);
+}
+
+[data-theme="dark"] .page-title {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .card-title {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .list-item-title {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .list-item-value {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .empty-state p {
+  color: var(--text-secondary);
+}
+
+/* Dark mode select options */
+[data-theme="dark"] select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Dark mode numpad */
+[data-theme="dark"] .numpad-key {
+  color: var(--text);
+}
+
+/* Dark mode chips and buttons */
+[data-theme="dark"] .chip {
+  color: var(--text);
+}
+
+[data-theme="dark"] .chip.active {
+  color: #fff;
+}
+
+/* Dark mode date header */
+[data-theme="dark"] .date-header {
+  color: var(--text-secondary);
+  background: var(--background);
+}
+
+/* Dark mode toggle fix */
+[data-theme="dark"] .toggle::after {
+  background: #fff;
+}
+
+/* Dark mode form labels */
+[data-theme="dark"] .form-label {
+  color: var(--text-secondary);
+}
+
+/* Dark mode secondary buttons */
+[data-theme="dark"] .btn-secondary {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+/* Dark mode placeholder text */
+[data-theme="dark"] .form-input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Fix for amount display in numpad */
+[data-theme="dark"] .amount-display {
+  color: var(--text-primary);
+}
+
+/* Fix for sheet/modal backgrounds */
+[data-theme="dark"] .sheet {
+  background: var(--background);
+}
+
+/* Fix for sheet title */
+[data-theme="dark"] .sheet-title {
+  color: var(--text-primary);
+}
+
+/* Fix navigation arrows and month selectors */
+[data-theme="dark"] .month-nav-btn {
+  color: var(--text);
+}
+
+/* Fix for inline text that might default to inherit */
+[data-theme="dark"] span {
+  color: inherit;
+}
+
+/* Ensure card content text is visible */
+[data-theme="dark"] .card {
+  color: var(--text-primary);
+}
+
+/* Summary card label and value in dark mode */
+[data-theme="dark"] .summary-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="dark"] .summary-value {
+  color: #fff;
+}
+
+[data-theme="dark"] .summary-subtitle {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Auth page text */
+[data-theme="dark"] .auth-title {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .auth-subtitle {
+  color: var(--text-secondary);
+}
+
+/* Fix for list items with transparent background */
+[data-theme="dark"] .list {
+  color: var(--text-primary);
+}
+
+/* Ensure page has proper text color */
+[data-theme="dark"] .page {
+  color: var(--text-primary);
+}
+
+/* Fix account balance color */
+[data-theme="dark"] .account-balance {
+  color: var(--text-primary);
+}
+
+/* Empty state fix */
+[data-theme="dark"] .empty-state-title {
+  color: var(--text-primary);
+}
+
+/* Fix input type number appearance */
+[data-theme="dark"] input[type="number"] {
+  color: var(--text);
+  background: var(--surface);
+}
+
+[data-theme="dark"] input[type="text"] {
+  color: var(--text);
+}
+
+[data-theme="dark"] input[type="search"] {
+  color: var(--text);
+  background: var(--surface);
+}
+
+/* Fix for month/year selectors text */
+[data-theme="dark"] .month-selector {
+  color: var(--text-primary);
+}
+
+/* Fix email and password inputs */
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"] {
+  color: var(--text);
+  background: var(--surface);
+}
+
+/* Auth logo in dark mode */
+[data-theme="dark"] .auth-logo {
+  color: var(--text-primary);
+}
+
+/* Auth page footer */
+[data-theme="dark"] .auth-footer {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .auth-footer a {
+  color: var(--primary);
+}
+
+/* Fix page header */
+[data-theme="dark"] .page-header {
+  background: var(--background);
+  color: var(--text-primary);
+}

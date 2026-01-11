@@ -302,7 +302,7 @@ export default function AccountDetail() {
                         <div style={{
                           height: '100%',
                           width: `${percent}%`,
-                          background: cat.color || '#000',
+                          background: cat.color || 'var(--primary)',
                           transition: 'width 0.3s ease'
                         }} />
                       </div>

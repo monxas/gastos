@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import BottomSheet from '../components/BottomSheet';
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useTheme } from '../context/ThemeContext';
 
 const INCOME_SOURCES = [
   { value: 'salary', label: 'Salario', icon: '💼' },
@@ -15,6 +16,7 @@ const INCOME_SOURCES = [
 ];
 
 export default function Incomes() {
+  const { isDark } = useTheme();
   const [incomes, setIncomes] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -267,7 +269,7 @@ export default function Incomes() {
                   style={{
                     padding: '12px 8px',
                     background: form.source === source.value ? 'var(--primary)' : 'var(--surface)',
-                    color: form.source === source.value ? '#fff' : 'inherit',
+                    color: form.source === source.value ? (isDark ? '#000' : '#fff') : 'var(--text)',
                     borderRadius: 'var(--radius)',
                     display: 'flex',
                     flexDirection: 'column',

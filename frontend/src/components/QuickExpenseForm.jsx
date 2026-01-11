@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { format, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useTheme } from '../context/ThemeContext';
 
 const NUMPAD = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'del'];
 
 export default function QuickExpenseForm({ onSave, onClose, defaultAccountId }) {
+  const { isDark } = useTheme();
   const [amount, setAmount] = useState('');
   const [categories, setCategories] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -268,7 +270,8 @@ export default function QuickExpenseForm({ onSave, onClose, defaultAccountId }) 
                     fontWeight: '500',
                     background: key === 'del' ? 'var(--surface)' : 'transparent',
                     borderRadius: 'var(--radius)',
-                    transition: 'var(--transition)'
+                    transition: 'var(--transition)',
+                    color: 'var(--text)'
                   }}
                 >
                   {key === 'del' ? '⌫' : key}
@@ -364,7 +367,7 @@ export default function QuickExpenseForm({ onSave, onClose, defaultAccountId }) 
                     padding: '10px',
                     borderRadius: 'var(--radius)',
                     background: selectedDate === today ? 'var(--primary)' : 'var(--surface)',
-                    color: selectedDate === today ? '#fff' : 'var(--text)',
+                    color: selectedDate === today ? (isDark ? '#000' : '#fff') : 'var(--text)',
                     fontWeight: '500',
                     fontSize: '14px'
                   }}
@@ -379,7 +382,7 @@ export default function QuickExpenseForm({ onSave, onClose, defaultAccountId }) 
                     padding: '10px',
                     borderRadius: 'var(--radius)',
                     background: selectedDate === yesterday ? 'var(--primary)' : 'var(--surface)',
-                    color: selectedDate === yesterday ? '#fff' : 'var(--text)',
+                    color: selectedDate === yesterday ? (isDark ? '#000' : '#fff') : 'var(--text)',
                     fontWeight: '500',
                     fontSize: '14px'
                   }}
@@ -433,7 +436,7 @@ export default function QuickExpenseForm({ onSave, onClose, defaultAccountId }) 
                           padding: '6px 12px',
                           borderRadius: '20px',
                           background: isSelected ? 'var(--primary)' : 'var(--surface)',
-                          color: isSelected ? '#fff' : 'var(--text)',
+                          color: isSelected ? (isDark ? '#000' : '#fff') : 'var(--text)',
                           fontSize: '13px',
                           fontWeight: '500',
                           transition: 'var(--transition)'
@@ -443,7 +446,7 @@ export default function QuickExpenseForm({ onSave, onClose, defaultAccountId }) 
                           width: '8px',
                           height: '8px',
                           borderRadius: '50%',
-                          background: isSelected ? '#fff' : tag.color
+                          background: isSelected ? (isDark ? '#000' : '#fff') : tag.color
                         }} />
                         {tag.name}
                       </button>

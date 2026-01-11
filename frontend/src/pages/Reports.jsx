@@ -3,8 +3,12 @@ import { api } from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Tooltip } from 'recharts';
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Reports() {
+  const { isDark } = useTheme();
+  const chartColor = isDark ? '#fff' : '#000';
+  const chartTickColor = isDark ? '#8e8e93' : '#666';
   const [summary, setSummary] = useState(null);
   const [insights, setInsights] = useState(null);
   const [budgets, setBudgets] = useState([]);
@@ -222,7 +226,7 @@ export default function Reports() {
                           </Pie>
                           <Tooltip
                             formatter={(value) => formatCurrency(value)}
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' }}
                           />
                         </PieChart>
                       </ResponsiveContainer>
@@ -277,19 +281,19 @@ export default function Reports() {
                           <XAxis
                             dataKey="date"
                             tickFormatter={(date) => format(new Date(date), 'd')}
-                            tick={{ fontSize: 10 }}
+                            tick={{ fontSize: 10, fill: chartTickColor }}
                           />
                           <YAxis
                             tickFormatter={(value) => formatCurrency(value, true)}
-                            tick={{ fontSize: 10 }}
+                            tick={{ fontSize: 10, fill: chartTickColor }}
                             width={50}
                           />
                           <Tooltip
                             formatter={(value) => formatCurrency(value)}
                             labelFormatter={(date) => format(new Date(date), 'EEEE d', { locale: es })}
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' }}
                           />
-                          <Bar dataKey="total" fill="#000" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="total" fill={chartColor} radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -362,22 +366,22 @@ export default function Reports() {
                   <div style={{ height: 250 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={historicalData}>
-                        <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                        <XAxis dataKey="date" tick={{ fontSize: 11, fill: chartTickColor }} />
                         <YAxis
                           tickFormatter={(value) => formatCurrency(value, true)}
-                          tick={{ fontSize: 10 }}
+                          tick={{ fontSize: 10, fill: chartTickColor }}
                           width={50}
                         />
                         <Tooltip
                           formatter={(value) => formatCurrency(value)}
-                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', background: isDark ? '#1c1c1e' : '#fff', color: isDark ? '#fff' : '#000' }}
                         />
                         <Line
                           type="monotone"
                           dataKey="total"
-                          stroke="#000"
+                          stroke={chartColor}
                           strokeWidth={2}
-                          dot={{ fill: '#000', strokeWidth: 2, r: 4 }}
+                          dot={{ fill: chartColor, strokeWidth: 2, r: 4 }}
                           activeDot={{ r: 6 }}
                         />
                       </LineChart>
@@ -441,7 +445,7 @@ export default function Reports() {
                               <div style={{
                                 height: '100%',
                                 width: `${Math.min(100, (cat.total / Math.max(cat.total, cat.previous || 1)) * 100)}%`,
-                                background: cat.color || '#000'
+                                background: cat.color || 'var(--primary)'
                               }} />
                             </div>
                             <span style={{ fontSize: '11px', color: 'var(--text-secondary)', minWidth: '60px', textAlign: 'right' }}>
