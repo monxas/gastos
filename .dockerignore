@@ -1,0 +1,11 @@
+node_modules
+*.log
+.git
+.gitignore
+.env
+*.md
+.DS_Store
+frontend/node_modules
+frontend/dist
+backend/node_modules
+backend/data

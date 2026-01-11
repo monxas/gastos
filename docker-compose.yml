@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  gastos:
+    build: .
+    container_name: gastos-app
+    ports:
+      - "8080:3000"
+    volumes:
+      - gastos-data:/app/backend/data
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET:-gastos-super-secret-key-change-in-production}
+    restart: unless-stopped
+
+volumes:
+  gastos-data:
