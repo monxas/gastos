@@ -401,12 +401,12 @@ export default function SetupWizard() {
                 {accounts.map(acc => (
                   <div key={acc.id} className="wizard-list-item">
                     <div className="wizard-list-icon">
-                      {acc.type === 'bank' ? '🏦' : acc.type === 'cash' ? '💵' : '💳'}
+                      {acc.type === 'bank' ? '🏦' : '💵'}
                     </div>
                     <div className="wizard-list-content">
                       <div className="wizard-list-title">{acc.name}</div>
                       <div className="wizard-list-subtitle">
-                        {acc.type === 'bank' ? 'Banco' : acc.type === 'cash' ? 'Efectivo' : 'Tarjeta debito'}
+                        {acc.type === 'bank' ? 'Cuenta bancaria' : 'Efectivo'}
                       </div>
                     </div>
                     <div className="wizard-list-value">
@@ -434,9 +434,8 @@ export default function SetupWizard() {
                   value={newAccount.type}
                   onChange={(e) => setNewAccount(a => ({ ...a, type: e.target.value }))}
                 >
-                  <option value="bank">Banco</option>
+                  <option value="bank">Cuenta bancaria</option>
                   <option value="cash">Efectivo</option>
-                  <option value="debit_card">Tarjeta debito</option>
                 </select>
                 <input
                   type="number"
