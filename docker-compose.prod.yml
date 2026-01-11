@@ -1,7 +1,6 @@
 services:
   gastos:
-    image: gastos:latest
-    build: .
+    image: ghcr.io/monxas/gastos:latest
     container_name: gastos-app
     volumes:
       - gastos-data:/app/backend/data

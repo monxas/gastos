@@ -2,6 +2,9 @@
 
 Aplicacion PWA mobile-first para gestion de gastos personales con soporte offline y dark mode.
 
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Docker](https://img.shields.io/badge/docker-ready-blue.svg)
+
 ## Caracteristicas
 
 - **Gastos y categorias** - Registra gastos con categorias personalizables e iconos
@@ -17,146 +20,123 @@ Aplicacion PWA mobile-first para gestion de gastos personales con soporte offlin
 - **Tags** - Etiquetas personalizables para filtrar gastos
 - **Recibos** - Adjunta fotos de recibos a los gastos
 
-## Stack
+## Instalacion
 
-- **Frontend**: React 18, Vite, Recharts, date-fns
-- **Backend**: Node.js, Fastify, SQLite (better-sqlite3)
-- **PWA**: vite-plugin-pwa, Workbox
-- **Despliegue**: Docker
+### Docker Compose (recomendado)
 
-## Inicio Rapido
+1. Crea un archivo `docker-compose.yml`:
 
-### Con Docker (recomendado)
+```yaml
+services:
+  gastos:
+    image: ghcr.io/monxas/gastos:latest
+    container_name: gastos
+    ports:
+      - "8080:3000"
+    volumes:
+      - gastos-data:/app/backend/data
+    environment:
+      - JWT_SECRET=tu-secreto-seguro-aqui
+    restart: unless-stopped
 
-```bash
-docker-compose up -d --build
+volumes:
+  gastos-data:
 ```
 
-La app estara disponible en http://localhost:8080
-
-### Desarrollo local (sin Docker)
+2. Genera un secreto seguro para JWT:
 
 ```bash
-# Backend
-cd backend && npm install && npm run dev
-
-# Frontend (en otra terminal)
-cd frontend && npm install && npm run dev
+openssl rand -base64 32
 ```
 
-## Despliegue en Produccion
+3. Reemplaza `tu-secreto-seguro-aqui` con el secreto generado.
 
-### Con Traefik
-
-1. Crear archivo `.env`:
-```bash
-cp .env.example .env
-# Editar y poner un JWT_SECRET seguro:
-# openssl rand -base64 32
-```
-
-2. Crear red de Docker (si no existe):
-```bash
-docker network create web
-```
-
-3. Desplegar:
-```bash
-docker-compose -f docker-compose.prod.yml up -d --build
-```
-
-El archivo `docker-compose.prod.yml` incluye labels de Traefik para SSL automatico con Let's Encrypt.
-
-### Sin Traefik
+4. Inicia la aplicacion:
 
 ```bash
-docker-compose up -d --build
+docker-compose up -d
 ```
 
-Configura un reverse proxy (nginx, caddy) apuntando al puerto 8080.
+5. Accede a `http://localhost:8080`
+
+### Con Traefik (SSL automatico)
+
+Si usas Traefik como reverse proxy:
+
+```yaml
+services:
+  gastos:
+    image: ghcr.io/monxas/gastos:latest
+    container_name: gastos
+    volumes:
+      - gastos-data:/app/backend/data
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+    restart: unless-stopped
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gastos.rule=Host(`gastos.tudominio.com`)"
+      - "traefik.http.routers.gastos.entrypoints=websecure"
+      - "traefik.http.routers.gastos.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gastos.loadbalancer.server.port=3000"
+
+networks:
+  web:
+    external: true
+
+volumes:
+  gastos-data:
+```
+
+Crea un archivo `.env` con tu secreto:
+
+```bash
+JWT_SECRET=$(openssl rand -base64 32)
+```
+
+## Actualizacion
+
+```bash
+docker-compose pull
+docker-compose up -d
+```
+
+## Backup
+
+Los datos se almacenan en un volumen Docker. Para hacer backup:
+
+```bash
+# Crear backup
+docker run --rm -v gastos-data:/data -v $(pwd):/backup alpine tar czf /backup/gastos-backup.tar.gz -C /data .
+
+# Restaurar backup
+docker run --rm -v gastos-data:/data -v $(pwd):/backup alpine tar xzf /backup/gastos-backup.tar.gz -C /data
+```
 
 ## Variables de Entorno
 
-| Variable | Descripcion | Default |
-|----------|-------------|---------|
-| `JWT_SECRET` | Secreto para tokens JWT | (requerido en prod) |
-| `NODE_ENV` | Entorno | production |
-| `PORT` | Puerto del servidor | 3000 |
-| `DB_PATH` | Ruta base de datos SQLite | /app/backend/data/gastos.db |
+| Variable | Descripcion | Requerido |
+|----------|-------------|-----------|
+| `JWT_SECRET` | Secreto para tokens de autenticacion | Si |
 
-## Estructura del Proyecto
+## Uso
 
-```
-gastos/
-├── backend/
-│   └── src/
-│       ├── db/          # Inicializacion SQLite
-│       ├── routes/      # Endpoints API
-│       └── index.js     # Entry point
-├── frontend/
-│   └── src/
-│       ├── components/  # Componentes React
-│       ├── context/     # Auth y Theme contexts
-│       ├── pages/       # Paginas de la app
-│       ├── services/    # API client
-│       └── styles/      # CSS global
-├── docker-compose.yml      # Desarrollo
-├── docker-compose.prod.yml # Produccion con Traefik
-├── Dockerfile
-└── .env.example
-```
+1. **Registro**: Al acceder por primera vez, crea una cuenta
+2. **Cuentas**: Configura tus cuentas bancarias, efectivo y tarjetas
+3. **Categorias**: Personaliza las categorias de gastos
+4. **Gastos**: Registra tus gastos diarios desde el boton +
+5. **Presupuestos**: Define limites mensuales por categoria
+6. **Informes**: Visualiza graficos y tendencias
 
-## API Endpoints
+### Instalacion como PWA
 
-### Autenticacion
-- `POST /api/auth/register` - Registro
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Usuario actual
+En tu movil, abre la app en el navegador y selecciona "Agregar a pantalla de inicio" para instalarla como aplicacion nativa.
 
-### Gastos
-- `GET /api/expenses` - Listar (con filtros)
-- `POST /api/expenses` - Crear
-- `PUT /api/expenses/:id` - Actualizar
-- `DELETE /api/expenses/:id` - Eliminar
-- `GET /api/expenses/summary/monthly` - Resumen mensual
-- `GET /api/expenses/export/csv` - Exportar CSV
+## Desarrollo
 
-### Categorias
-- `GET /api/categories` - Listar
-- `POST /api/categories` - Crear
-- `PUT /api/categories/:id` - Actualizar
-- `DELETE /api/categories/:id` - Eliminar
-
-### Cuentas
-- `GET /api/accounts` - Listar
-- `POST /api/accounts` - Crear
-- `PUT /api/accounts/:id` - Actualizar
-- `DELETE /api/accounts/:id` - Eliminar
-- `POST /api/accounts/:id/close-statement` - Cerrar tarjeta
-
-### Presupuestos
-- `GET /api/budgets` - Listar
-- `POST /api/budgets` - Crear
-- `GET /api/budgets/insights` - Alertas y tendencias
-
-### Ingresos
-- `GET /api/incomes` - Listar
-- `POST /api/incomes` - Crear
-- `GET /api/incomes/summary` - Resumen por fuente
-
-### Gastos Recurrentes
-- `GET /api/recurring` - Listar reglas
-- `POST /api/recurring` - Crear regla
-- `POST /api/recurring/process` - Procesar pendientes
-- `GET /api/recurring/upcoming` - Proximos gastos
-
-### Otros
-- `GET /api/tags` - Tags
-- `GET /api/currency/list` - Divisas disponibles
-- `GET /api/currency/rate` - Tipo de cambio
-- `GET /api/receipts/:id/image` - Imagen de recibo
-- `GET /api/settings` - Configuracion
-- `GET /health` - Health check
+Ver [DEVELOPMENT.md](DEVELOPMENT.md) para instrucciones de desarrollo local.
 
 ## Licencia
 
