@@ -105,12 +105,27 @@ export default async function incomesRoutes(fastify, options) {
     const { id } = request.params;
     const { date, amount, currency, account_id, source, note } = request.body;
 
+    // Check if income exists and belongs to user
+    const existing = db.prepare('SELECT * FROM incomes WHERE id = ? AND user_id = ? AND deleted_at IS NULL').get(id, request.user.userId);
+    if (!existing) {
+      return reply.status(404).send({ error: 'Ingreso no encontrado' });
+    }
+
     db.prepare(`
       UPDATE incomes
       SET date = ?, amount = ?, currency = ?, account_id = ?, source = ?, note = ?,
           updated_at = datetime('now'), version = version + 1
       WHERE id = ? AND user_id = ?
-    `).run(date, amount, currency, account_id, source, note, id, request.user.userId);
+    `).run(
+      date || existing.date,
+      amount !== undefined ? amount : existing.amount,
+      currency || existing.currency,
+      account_id || existing.account_id,
+      source || existing.source,
+      note !== undefined ? note : existing.note,
+      id,
+      request.user.userId
+    );
 
     return { message: 'Ingreso actualizado' };
   });

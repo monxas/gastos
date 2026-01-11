@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { v4 as uuidv4 } from 'uuid';
 
 export default function ExpenseForm({ expense, onSave, onClose, defaultAccountId }) {
   const [categories, setCategories] = useState([]);

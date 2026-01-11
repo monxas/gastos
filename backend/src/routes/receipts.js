@@ -48,12 +48,19 @@ export default async function receiptsRoutes(fastify, options) {
     return { id, filename, message: 'Recibo guardado' };
   });
 
-  // Get receipt image
-  fastify.get('/:id/image', async (request, reply) => {
+  // Get receipt image (requires authentication)
+  fastify.get('/:id/image', {
+    preHandler: [fastify.authenticate]
+  }, async (request, reply) => {
     const db = getDB();
     const { id } = request.params;
 
-    const receipt = db.prepare('SELECT * FROM receipts WHERE id = ?').get(id);
+    // Verify receipt belongs to user through expense ownership
+    const receipt = db.prepare(`
+      SELECT r.* FROM receipts r
+      JOIN expenses e ON r.expense_id = e.id
+      WHERE r.id = ? AND e.user_id = ?
+    `).get(id, request.user.userId);
     if (!receipt) {
       return reply.status(404).send({ error: 'Recibo no encontrado' });
     }

@@ -55,6 +55,33 @@ class Api {
   delete(endpoint) {
     return this.request(endpoint, { method: 'DELETE' });
   }
+
+  // Download file with authentication (for CSV exports, etc.)
+  async downloadFile(endpoint, filename) {
+    const url = `${BASE_URL}${endpoint}`;
+    const headers = {};
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || 'Error en la descarga');
+    }
+
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  }
 }
 
 export const api = new Api();

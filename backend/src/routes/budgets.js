@@ -9,8 +9,9 @@ export default async function budgetsRoutes(fastify, options) {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
+    const lastDay = new Date(year, month, 0).getDate(); // Correct last day of month
     const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
-    const endDate = `${year}-${month.toString().padStart(2, '0')}-31`;
+    const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
 
     const budgets = db.prepare(`
       SELECT b.*, c.name as category_name, c.icon as category_icon, c.color as category_color
@@ -71,11 +72,20 @@ export default async function budgetsRoutes(fastify, options) {
     const id = uuidv4();
 
     // Check if budget already exists for this category
-    const existing = db.prepare(`
-      SELECT id FROM budgets
-      WHERE user_id = ? AND category_id ${category_id ? '= ?' : 'IS NULL'}
-        AND deleted_at IS NULL AND is_active = 1
-    `).get(category_id ? [request.user.userId, category_id] : [request.user.userId]);
+    let existing;
+    if (category_id) {
+      existing = db.prepare(`
+        SELECT id FROM budgets
+        WHERE user_id = ? AND category_id = ?
+          AND deleted_at IS NULL AND is_active = 1
+      `).get(request.user.userId, category_id);
+    } else {
+      existing = db.prepare(`
+        SELECT id FROM budgets
+        WHERE user_id = ? AND category_id IS NULL
+          AND deleted_at IS NULL AND is_active = 1
+      `).get(request.user.userId);
+    }
 
     if (existing) {
       return reply.status(400).send({ error: 'Ya existe un presupuesto para esta categoria' });
@@ -146,12 +156,14 @@ export default async function budgetsRoutes(fastify, options) {
     const prevYear = month === 1 ? year - 1 : year;
 
     // Current month dates
+    const lastDayCurrent = new Date(year, month, 0).getDate();
     const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
-    const endDate = `${year}-${month.toString().padStart(2, '0')}-31`;
+    const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDayCurrent.toString().padStart(2, '0')}`;
 
     // Previous month dates
+    const lastDayPrev = new Date(prevYear, prevMonth, 0).getDate();
     const prevStartDate = `${prevYear}-${prevMonth.toString().padStart(2, '0')}-01`;
-    const prevEndDate = `${prevYear}-${prevMonth.toString().padStart(2, '0')}-31`;
+    const prevEndDate = `${prevYear}-${prevMonth.toString().padStart(2, '0')}-${lastDayPrev.toString().padStart(2, '0')}`;
 
     // Current month total
     const currentTotal = db.prepare(`
@@ -167,9 +179,9 @@ export default async function budgetsRoutes(fastify, options) {
         AND date >= ? AND date <= ?
     `).get(request.user.userId, prevStartDate, prevEndDate).total;
 
-    // Daily average this month
+    // Daily average this month (prevent division by zero)
     const dayOfMonth = now.getDate();
-    const dailyAvgCurrent = currentTotal / dayOfMonth;
+    const dailyAvgCurrent = dayOfMonth > 0 ? currentTotal / dayOfMonth : 0;
 
     // Category comparison
     const currentByCategory = db.prepare(`

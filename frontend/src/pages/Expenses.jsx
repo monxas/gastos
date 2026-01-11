@@ -93,16 +93,19 @@ export default function Expenses() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     let query = '/expenses/export/csv?';
     if (filters.category_id) query += `&category_id=${filters.category_id}`;
     if (filters.account_id) query += `&account_id=${filters.account_id}`;
     if (filters.start_date) query += `&start_date=${filters.start_date}`;
     if (filters.end_date) query += `&end_date=${filters.end_date}`;
 
-    // Get token for auth
-    const token = localStorage.getItem('token');
-    window.open(`${api.baseUrl}${query}`, '_blank');
+    const filename = `gastos-${filters.start_date || 'all'}-${filters.end_date || 'all'}.csv`;
+    try {
+      await api.downloadFile(query, filename);
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const handleDelete = async (id) => {

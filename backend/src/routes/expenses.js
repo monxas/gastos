@@ -325,7 +325,21 @@ export default async function expensesRoutes(fastify, options) {
     query += ' ORDER BY e.date DESC';
     const expenses = db.prepare(query).all(...params);
 
-    // Generate CSV
+    // Generate CSV with proper escaping to prevent CSV injection
+    const escapeCSV = (value) => {
+      if (value === null || value === undefined) return '';
+      const str = String(value);
+      // Escape quotes and wrap in quotes if contains special chars
+      if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      // Prevent CSV injection - prefix formula-like content with single quote
+      if (/^[=+\-@\t\r]/.test(str)) {
+        return `"'${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
     const headers = ['Fecha', 'Monto', 'Moneda', 'Monto Base (EUR)', 'Categoria', 'Cuenta', 'Nota'];
     const rows = expenses.map(e => [
       e.date,
@@ -334,12 +348,12 @@ export default async function expensesRoutes(fastify, options) {
       e.amount_base,
       e.category_name,
       e.account_name,
-      (e.note || '').replace(/"/g, '""')
+      e.note || ''
     ]);
 
     let csv = headers.join(',') + '\n';
     for (const row of rows) {
-      csv += row.map(v => typeof v === 'string' && v.includes(',') ? `"${v}"` : v).join(',') + '\n';
+      csv += row.map(escapeCSV).join(',') + '\n';
     }
 
     return reply

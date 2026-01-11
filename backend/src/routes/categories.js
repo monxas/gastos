@@ -74,8 +74,8 @@ export default async function categoriesRoutes(fastify, options) {
       return reply.status(404).send({ error: 'Categoría no encontrada' });
     }
 
-    // Check if category has expenses
-    const expenseCount = db.prepare('SELECT COUNT(*) as count FROM expenses WHERE category_id = ? AND deleted_at IS NULL').get(id);
+    // Check if category has expenses (verify user ownership)
+    const expenseCount = db.prepare('SELECT COUNT(*) as count FROM expenses WHERE category_id = ? AND user_id = ? AND deleted_at IS NULL').get(id, request.user.userId);
     if (expenseCount.count > 0) {
       return reply.status(400).send({ error: 'No se puede eliminar una categoría con gastos asociados' });
     }

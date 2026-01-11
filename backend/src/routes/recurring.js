@@ -18,15 +18,29 @@ export default async function recurringRoutes(fastify, options) {
       ORDER BY r.name
     `).all(request.user.userId);
 
-    // Get tags for each rule
-    for (const rule of rules) {
-      const tags = db.prepare(`
-        SELECT t.id, t.name, t.color
+    // Get tags for all rules in a single query (N+1 fix)
+    const ruleIds = rules.map(r => r.id);
+    let tagsMap = {};
+
+    if (ruleIds.length > 0) {
+      const placeholders = ruleIds.map(() => '?').join(',');
+      const allTags = db.prepare(`
+        SELECT rt.rule_id, t.id, t.name, t.color
         FROM tags t
         JOIN recurrent_rule_tags rt ON t.id = rt.tag_id
-        WHERE rt.rule_id = ?
-      `).all(rule.id);
-      rule.tags = tags;
+        WHERE rt.rule_id IN (${placeholders})
+      `).all(...ruleIds);
+
+      for (const tag of allTags) {
+        if (!tagsMap[tag.rule_id]) {
+          tagsMap[tag.rule_id] = [];
+        }
+        tagsMap[tag.rule_id].push({ id: tag.id, name: tag.name, color: tag.color });
+      }
+    }
+
+    for (const rule of rules) {
+      rule.tags = tagsMap[rule.id] || [];
       rule.frequency_data = JSON.parse(rule.frequency_data);
     }
 
@@ -42,6 +56,33 @@ export default async function recurringRoutes(fastify, options) {
       name, amount, currency, category_id, account_id, note,
       frequency, interval, day_of_month, day_of_week, start_date, end_date, tag_ids
     } = request.body;
+
+    // Validation
+    if (!name || !name.trim()) {
+      return reply.status(400).send({ error: 'El nombre es requerido' });
+    }
+    if (!amount || amount <= 0) {
+      return reply.status(400).send({ error: 'El monto debe ser mayor a 0' });
+    }
+    if (!category_id || !account_id) {
+      return reply.status(400).send({ error: 'Categoria y cuenta son requeridas' });
+    }
+    if (!['daily', 'weekly', 'monthly', 'yearly'].includes(frequency)) {
+      return reply.status(400).send({ error: 'Frecuencia no valida' });
+    }
+    if (interval !== undefined && (interval < 1 || interval > 365)) {
+      return reply.status(400).send({ error: 'Intervalo debe estar entre 1 y 365' });
+    }
+
+    // Verify category and account belong to user
+    const category = db.prepare('SELECT id FROM categories WHERE id = ? AND user_id = ? AND deleted_at IS NULL').get(category_id, request.user.userId);
+    if (!category) {
+      return reply.status(400).send({ error: 'Categoria no valida' });
+    }
+    const account = db.prepare('SELECT id FROM accounts WHERE id = ? AND user_id = ? AND deleted_at IS NULL').get(account_id, request.user.userId);
+    if (!account) {
+      return reply.status(400).send({ error: 'Cuenta no valida' });
+    }
 
     const id = uuidv4();
     const frequencyData = JSON.stringify({ frequency, interval: interval || 1, day_of_month, day_of_week });
@@ -129,30 +170,35 @@ export default async function recurringRoutes(fastify, options) {
     `).all(request.user.userId, today, today);
 
     const created = [];
+    const errors = [];
     for (const rule of dueRules) {
-      const freqData = JSON.parse(rule.frequency_data);
-      const expenseId = uuidv4();
+      try {
+        const freqData = JSON.parse(rule.frequency_data);
+        const expenseId = uuidv4();
 
-      // Create expense
-      db.prepare(`
-        INSERT INTO expenses (id, user_id, date, amount_original, currency_original, amount_base, exchange_rate, category_id, account_id, note, is_recurrent_instance, recurrent_rule_id)
-        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 1, ?)
-      `).run(expenseId, request.user.userId, rule.next_run_at, rule.amount, rule.currency, rule.amount, rule.category_id, rule.account_id, rule.note, rule.id);
+        // Create expense
+        db.prepare(`
+          INSERT INTO expenses (id, user_id, date, amount_original, currency_original, amount_base, exchange_rate, category_id, account_id, note, is_recurrent_instance, recurrent_rule_id)
+          VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 1, ?)
+        `).run(expenseId, request.user.userId, rule.next_run_at, rule.amount, rule.currency, rule.amount, rule.category_id, rule.account_id, rule.note, rule.id);
 
-      // Copy tags
-      const ruleTags = db.prepare('SELECT tag_id FROM recurrent_rule_tags WHERE rule_id = ?').all(rule.id);
-      for (const tag of ruleTags) {
-        db.prepare('INSERT INTO expense_tags (expense_id, tag_id) VALUES (?, ?)').run(expenseId, tag.tag_id);
+        // Copy tags
+        const ruleTags = db.prepare('SELECT tag_id FROM recurrent_rule_tags WHERE rule_id = ?').all(rule.id);
+        for (const tag of ruleTags) {
+          db.prepare('INSERT INTO expense_tags (expense_id, tag_id) VALUES (?, ?)').run(expenseId, tag.tag_id);
+        }
+
+        // Calculate next run
+        const nextRun = calculateNextRun(rule.next_run_at, freqData, true);
+        db.prepare(`UPDATE recurrent_rules SET next_run_at = ?, updated_at = datetime('now') WHERE id = ?`).run(nextRun, rule.id);
+
+        created.push({ rule_id: rule.id, expense_id: expenseId, name: rule.name });
+      } catch (err) {
+        errors.push({ rule_id: rule.id, name: rule.name, error: err.message });
       }
-
-      // Calculate next run
-      const nextRun = calculateNextRun(rule.next_run_at, freqData, true);
-      db.prepare('UPDATE recurrent_rules SET next_run_at = ?, updated_at = datetime(\'now\') WHERE id = ?').run(nextRun, rule.id);
-
-      created.push({ rule_id: rule.id, expense_id: expenseId, name: rule.name });
     }
 
-    return { processed: created.length, created };
+    return { processed: created.length, created, errors: errors.length > 0 ? errors : undefined };
   });
 
   // Get upcoming recurring expenses

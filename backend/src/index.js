@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
+import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import multipart from '@fastify/multipart';
 import { fileURLToPath } from 'url';
@@ -27,13 +28,34 @@ const fastify = Fastify({
   logger: true
 });
 
+// CORS configuration - restrict in production
+const corsOrigin = process.env.NODE_ENV === 'production'
+  ? process.env.CORS_ORIGIN || 'https://gastos.example.com'
+  : true;
+
 await fastify.register(cors, {
-  origin: true,
+  origin: corsOrigin,
   credentials: true
 });
 
+// JWT configuration - require secret in production
+const jwtSecret = process.env.JWT_SECRET;
+if (process.env.NODE_ENV === 'production' && !jwtSecret) {
+  console.error('FATAL: JWT_SECRET must be set in production');
+  process.exit(1);
+}
+
 await fastify.register(jwt, {
-  secret: process.env.JWT_SECRET || 'gastos-super-secret-key-change-in-production'
+  secret: jwtSecret || 'gastos-dev-secret-key'
+});
+
+// Rate limiting - protect against abuse
+await fastify.register(rateLimit, {
+  max: 100, // 100 requests per window
+  timeWindow: '1 minute',
+  errorResponseBuilder: () => ({
+    error: 'Demasiadas peticiones. Intenta de nuevo en un minuto.'
+  })
 });
 
 await fastify.register(multipart, {
