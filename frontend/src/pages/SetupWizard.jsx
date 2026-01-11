@@ -741,9 +741,13 @@ export default function SetupWizard() {
                   onChange={(e) => setNewIncome(i => ({ ...i, account_id: e.target.value }))}
                 >
                   <option value="">Seleccionar cuenta</option>
-                  {accounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>{acc.name}</option>
-                  ))}
+                  {accounts.length === 0 ? (
+                    <option disabled>No hay cuentas creadas</option>
+                  ) : (
+                    accounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>{acc.type === 'bank' ? '🏦' : '💵'} {acc.name}</option>
+                    ))
+                  )}
                 </select>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Dia del mes</label>
@@ -868,14 +872,24 @@ export default function SetupWizard() {
                 style={{ marginBottom: 12 }}
               >
                 <option value="">Cuenta de cargo</option>
-                {accounts.map(acc => (
-                  <option key={acc.id} value={acc.id}>{acc.name}</option>
-                ))}
+                {accounts.length === 0 ? (
+                  <option disabled>No hay cuentas creadas</option>
+                ) : (
+                  accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.type === 'bank' ? '🏦' : '💵'} {acc.name}</option>
+                  ))
+                )}
               </select>
               <button className="btn btn-secondary btn-block" onClick={addRecurringExpense}>
                 + Agregar gasto recurrente
               </button>
             </div>
+
+            {accounts.length === 0 && (
+              <div className="wizard-hint warning">
+                <span>⚠️</span> Necesitas agregar al menos una cuenta primero (Paso 3).
+              </div>
+            )}
           </div>
         );
 
