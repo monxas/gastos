@@ -34,6 +34,7 @@ export function initDB() {
       user_id TEXT NOT NULL UNIQUE,
       base_currency TEXT DEFAULT 'EUR',
       language TEXT DEFAULT 'es',
+      setup_completed INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
@@ -226,6 +227,13 @@ export function initDB() {
     CREATE INDEX IF NOT EXISTS idx_accounts_user ON accounts(user_id);
     CREATE INDEX IF NOT EXISTS idx_budgets_user ON budgets(user_id);
   `);
+
+  // Migrations for existing databases
+  try {
+    db.exec(`ALTER TABLE user_settings ADD COLUMN setup_completed INTEGER DEFAULT 0`);
+  } catch (e) {
+    // Column already exists
+  }
 
   console.log('Database initialized');
   return db;

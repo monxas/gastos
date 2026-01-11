@@ -264,6 +264,14 @@ export default function Settings() {
             <span className="card-title">Funciones</span>
           </div>
           <div className="list" style={{ background: 'transparent' }}>
+            <div className="list-item" onClick={() => navigate('/setup')} style={{ background: 'transparent', cursor: 'pointer' }}>
+              <div className="list-item-icon" style={{ background: 'var(--surface)' }}>🧙</div>
+              <div className="list-item-content">
+                <div className="list-item-title">Asistente de configuracion</div>
+                <div className="list-item-subtitle">Configura cuentas, categorias, etc.</div>
+              </div>
+              <ChevronRight />
+            </div>
             <div className="list-item" onClick={() => navigate('/recurring')} style={{ background: 'transparent', cursor: 'pointer' }}>
               <div className="list-item-icon" style={{ background: 'var(--surface)' }}>🔄</div>
               <div className="list-item-content">

@@ -15,7 +15,7 @@ export default async function settingsRoutes(fastify, options) {
 
   // Update user settings
   fastify.put('/', { preHandler: [fastify.authenticate] }, async (request, reply) => {
-    const { base_currency, language } = request.body;
+    const { base_currency, language, setup_completed } = request.body;
     const db = getDB();
 
     const existing = db.prepare('SELECT * FROM user_settings WHERE user_id = ?').get(request.user.userId);
@@ -26,11 +26,12 @@ export default async function settingsRoutes(fastify, options) {
 
     db.prepare(`
       UPDATE user_settings
-      SET base_currency = ?, language = ?, updated_at = datetime('now')
+      SET base_currency = ?, language = ?, setup_completed = ?, updated_at = datetime('now')
       WHERE user_id = ?
     `).run(
       base_currency || existing.base_currency,
       language || existing.language,
+      setup_completed !== undefined ? (setup_completed ? 1 : 0) : existing.setup_completed,
       request.user.userId
     );
 

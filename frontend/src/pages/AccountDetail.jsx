@@ -51,6 +51,8 @@ export default function AccountDetail() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showAdjustBalance, setShowAdjustBalance] = useState(false);
+  const [adjustedBalance, setAdjustedBalance] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(0); // 0 = current, -1 = last month, etc.
 
   useEffect(() => {
@@ -112,6 +114,29 @@ export default function AccountDetail() {
       loadData();
     } catch (err) {
       alert(err.response?.error || 'Error al cerrar corte');
+    }
+  };
+
+  const handleAdjustBalance = async (e) => {
+    e.preventDefault();
+    const newBalance = parseFloat(adjustedBalance);
+    if (isNaN(newBalance)) return;
+
+    try {
+      // Calculate new initial_balance: new_initial = new_balance + total_expenses
+      // Since current_balance = initial_balance - total_expenses
+      // We need: new_initial = newBalance + (initial_balance - current_balance)
+      const totalExpenses = account.initial_balance - account.current_balance;
+      const newInitialBalance = newBalance + totalExpenses;
+
+      await api.put(`/accounts/${id}`, {
+        initial_balance: newInitialBalance
+      });
+      setShowAdjustBalance(false);
+      setAdjustedBalance('');
+      loadData();
+    } catch (err) {
+      alert(err.response?.error || 'Error al ajustar saldo');
     }
   };
 
@@ -217,8 +242,25 @@ export default function AccountDetail() {
           )}
 
           {!isCredit && (
-            <div style={{ fontSize: '12px', opacity: 0.6, marginTop: '8px' }}>
-              Saldo inicial: {formatCurrency(account.initial_balance)}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+              <span style={{ fontSize: '12px', opacity: 0.6 }}>
+                Saldo inicial: {formatCurrency(account.initial_balance)}
+              </span>
+              <button
+                onClick={() => {
+                  setAdjustedBalance(account.current_balance.toString());
+                  setShowAdjustBalance(true);
+                }}
+                style={{
+                  fontSize: '12px',
+                  padding: '6px 12px',
+                  background: 'rgba(255,255,255,0.15)',
+                  borderRadius: '20px',
+                  color: 'inherit'
+                }}
+              >
+                Ajustar saldo
+              </button>
             </div>
           )}
         </div>
@@ -415,6 +457,39 @@ export default function AccountDetail() {
           }}
           onClose={() => setShowForm(false)}
         />
+      </BottomSheet>
+
+      <BottomSheet isOpen={showAdjustBalance} onClose={() => setShowAdjustBalance(false)} title="Ajustar Saldo">
+        <form onSubmit={handleAdjustBalance}>
+          <p style={{ marginBottom: '16px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+            Ajusta el saldo actual de la cuenta sin crear un ingreso o gasto. Util para corregir el saldo inicial o sincronizar con tu banco.
+          </p>
+          <div className="form-group">
+            <label className="form-label">Saldo actual real</label>
+            <input
+              type="number"
+              step="0.01"
+              className="form-input"
+              placeholder="0.00"
+              value={adjustedBalance}
+              onChange={(e) => setAdjustedBalance(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ flex: 1 }}
+              onClick={() => setShowAdjustBalance(false)}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
+              Guardar
+            </button>
+          </div>
+        </form>
       </BottomSheet>
     </>
   );
