@@ -1172,7 +1172,7 @@ a {
 
 .wizard-category-btn.selected {
   border-color: var(--cat-color, var(--primary));
-  background: color-mix(in srgb, var(--cat-color, var(--primary)) 10%, var(--background));
+  background: var(--surface);
 }
 
 .wizard-category-btn .cat-icon {
@@ -1219,7 +1219,62 @@ a {
   cursor: pointer;
 }
 
-/* Tags List */
+/* Tags Grid */
+.wizard-tags-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.wizard-tag-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 2px solid transparent;
+  border-radius: 24px;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.wizard-tag-btn:hover {
+  border-color: var(--border);
+}
+
+.wizard-tag-btn.selected {
+  border-color: var(--tag-color, var(--primary));
+  background: var(--surface);
+}
+
+.wizard-tag-btn .tag-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wizard-tag-btn .tag-name {
+  font-weight: 500;
+}
+
+.wizard-tag-btn .tag-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--success);
+  color: white;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+}
+
+/* Tags List (for custom tags) */
 .wizard-tags-list {
   display: flex;
   flex-wrap: wrap;
@@ -1290,7 +1345,7 @@ a {
 }
 
 .wizard-hint.warning {
-  background: color-mix(in srgb, var(--warning) 15%, var(--background));
+  background: rgba(255, 149, 0, 0.15);
   color: var(--warning);
 }
 
@@ -1365,7 +1420,7 @@ a {
 }
 
 [data-theme="dark"] .wizard-category-btn.selected {
-  background: color-mix(in srgb, var(--cat-color, var(--primary)) 20%, var(--surface));
+  background: var(--border);
 }
 
 [data-theme="dark"] .wizard-list-icon {
@@ -1377,5 +1432,5 @@ a {
 }
 
 [data-theme="dark"] .wizard-hint.warning {
-  background: color-mix(in srgb, var(--warning) 20%, var(--surface));
+  background: rgba(255, 159, 10, 0.2);
 }

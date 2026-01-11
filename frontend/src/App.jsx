@@ -15,11 +15,11 @@ import Recurring from './pages/Recurring';
 import Incomes from './pages/Incomes';
 import SetupWizard from './pages/SetupWizard';
 
-function PrivateRoute({ children, skipSetupCheck }) {
+function PrivateRoute({ children, skipSetupCheck = false }) {
   const { token, loading } = useAuth();
   const location = useLocation();
   const [setupCompleted, setSetupCompleted] = useState(null);
-  const [checkingSetup, setCheckingSetup] = useState(true);
+  const [checkingSetup, setCheckingSetup] = useState(!skipSetupCheck);
 
   useEffect(() => {
     if (token && !skipSetupCheck) {
@@ -33,12 +33,10 @@ function PrivateRoute({ children, skipSetupCheck }) {
         .finally(() => {
           setCheckingSetup(false);
         });
-    } else {
-      setCheckingSetup(false);
     }
   }, [token, skipSetupCheck]);
 
-  if (loading || (token && !skipSetupCheck && checkingSetup)) {
+  if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
         <span>Cargando...</span>
@@ -48,6 +46,15 @@ function PrivateRoute({ children, skipSetupCheck }) {
 
   if (!token) {
     return <Navigate to="/login" />;
+  }
+
+  // Still checking setup status
+  if (!skipSetupCheck && checkingSetup) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <span>Cargando...</span>
+      </div>
+    );
   }
 
   // Redirect to setup wizard if not completed
@@ -74,7 +81,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-        <Route path="/setup" element={<PrivateRoute skipSetupCheck><SetupWizard /></PrivateRoute>} />
+        <Route path="/setup" element={<PrivateRoute skipSetupCheck={true}><SetupWizard /></PrivateRoute>} />
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
           <Route index element={<Home />} />
           <Route path="expenses" element={<Expenses />} />

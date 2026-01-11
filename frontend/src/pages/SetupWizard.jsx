@@ -40,9 +40,32 @@ const EXPENSE_FREQUENCIES = [
   { value: 'yearly', label: 'Anual' },
 ];
 
+const DEFAULT_TAGS = [
+  { name: 'Vacaciones', color: '#FF6B6B' },
+  { name: 'Trabajo', color: '#4ECDC4' },
+  { name: 'Personal', color: '#45B7D1' },
+  { name: 'Familia', color: '#96CEB4' },
+  { name: 'Regalo', color: '#DDA0DD' },
+  { name: 'Urgente', color: '#FF9500' },
+  { name: 'Impuestos', color: '#8E8E93' },
+  { name: 'Educacion', color: '#5856D6' },
+  { name: 'Mascotas', color: '#FFCC00' },
+  { name: 'Deporte', color: '#34C759' },
+  { name: 'Gasolina', color: '#FF3B30' },
+  { name: 'Restaurante', color: '#FF9500' },
+  { name: 'Online', color: '#007AFF' },
+  { name: 'Efectivo', color: '#30D158' },
+  { name: 'Tarjeta', color: '#5856D6' },
+  { name: 'Reembolsable', color: '#00C7BE' },
+  { name: 'Medico', color: '#FF2D55' },
+  { name: 'Viaje', color: '#AF52DE' },
+];
+
 export default function SetupWizard() {
   const navigate = useNavigate();
-  const { isDark, toggleTheme } = useTheme();
+  const themeContext = useTheme();
+  const isDark = themeContext?.isDark ?? false;
+  const toggleTheme = themeContext?.toggleTheme ?? (() => {});
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -52,7 +75,8 @@ export default function SetupWizard() {
   const [creditCards, setCreditCards] = useState([]);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES.map(c => ({ ...c, enabled: true })));
   const [newCategories, setNewCategories] = useState([]);
-  const [tags, setTags] = useState([]);
+  const [tags, setTags] = useState(DEFAULT_TAGS.map(t => ({ ...t, enabled: false })));
+  const [customTags, setCustomTags] = useState([]);
   const [incomes, setIncomes] = useState([]);
   const [recurringExpenses, setRecurringExpenses] = useState([]);
 
@@ -146,14 +170,20 @@ export default function SetupWizard() {
     setNewCategories(newCategories.filter(c => c.id !== id));
   };
 
-  const addTag = () => {
+  const toggleTag = (index) => {
+    const updated = [...tags];
+    updated[index].enabled = !updated[index].enabled;
+    setTags(updated);
+  };
+
+  const addCustomTag = () => {
     if (!newTag.name) return;
-    setTags([...tags, { ...newTag, id: Date.now() }]);
+    setCustomTags([...customTags, { ...newTag, id: Date.now() }]);
     setNewTag({ name: '', color: '#666666' });
   };
 
-  const removeTag = (id) => {
-    setTags(tags.filter(t => t.id !== id));
+  const removeCustomTag = (id) => {
+    setCustomTags(customTags.filter(t => t.id !== id));
   };
 
   const addIncome = () => {
@@ -222,8 +252,9 @@ export default function SetupWizard() {
       }
       setCreatedCategories(Object.values(categoryMap));
 
-      // 5. Create tags
-      for (const tag of tags) {
+      // 5. Create tags (enabled default tags + custom tags)
+      const enabledTags = tags.filter(t => t.enabled);
+      for (const tag of [...enabledTags, ...customTags]) {
         await api.post('/tags', {
           name: tag.name,
           color: tag.color
@@ -578,18 +609,36 @@ export default function SetupWizard() {
         return (
           <div className="wizard-content">
             <h2>Tags</h2>
-            <p>Los tags te permiten filtrar gastos de forma transversal. Por ejemplo: "vacaciones", "trabajo", "regalo".</p>
+            <p>Los tags te permiten filtrar gastos de forma transversal. Selecciona los que quieras usar.</p>
 
-            {tags.length > 0 && (
-              <div className="wizard-tags-list">
-                {tags.map(tag => (
-                  <div key={tag.id} className="wizard-tag" style={{ '--tag-color': tag.color }}>
-                    <span className="tag-dot" style={{ background: tag.color }}></span>
-                    <span>{tag.name}</span>
-                    <button className="tag-remove" onClick={() => removeTag(tag.id)}>×</button>
-                  </div>
-                ))}
-              </div>
+            <div className="wizard-tags-grid">
+              {tags.map((tag, idx) => (
+                <button
+                  key={idx}
+                  className={`wizard-tag-btn ${tag.enabled ? 'selected' : ''}`}
+                  onClick={() => toggleTag(idx)}
+                  style={{ '--tag-color': tag.color }}
+                >
+                  <span className="tag-dot" style={{ background: tag.color }}></span>
+                  <span className="tag-name">{tag.name}</span>
+                  {tag.enabled && <span className="tag-check">✓</span>}
+                </button>
+              ))}
+            </div>
+
+            {customTags.length > 0 && (
+              <>
+                <h3 style={{ marginTop: 24 }}>Tags personalizados</h3>
+                <div className="wizard-tags-list">
+                  {customTags.map(tag => (
+                    <div key={tag.id} className="wizard-tag">
+                      <span className="tag-dot" style={{ background: tag.color }}></span>
+                      <span>{tag.name}</span>
+                      <button className="tag-remove" onClick={() => removeCustomTag(tag.id)}>×</button>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
 
             <div className="wizard-form" style={{ marginTop: 24 }}>
@@ -609,13 +658,13 @@ export default function SetupWizard() {
                   style={{ width: 60, padding: 4 }}
                 />
               </div>
-              <button className="btn btn-secondary btn-block" onClick={addTag}>
-                + Agregar tag
+              <button className="btn btn-secondary btn-block" onClick={addCustomTag}>
+                + Agregar tag personalizado
               </button>
             </div>
 
             <div className="wizard-hint">
-              <span>💡</span> Puedes saltar este paso y agregar tags despues.
+              <span>💡</span> Los tags son opcionales. Puedes agregarlos despues desde Ajustes.
             </div>
           </div>
         );
@@ -849,11 +898,11 @@ export default function SetupWizard() {
                 <span className="summary-label">Categorias</span>
                 <span className="summary-value">{categories.filter(c => c.enabled).length + newCategories.length}</span>
               </div>
-              {tags.length > 0 && (
+              {(tags.filter(t => t.enabled).length + customTags.length) > 0 && (
                 <div className="summary-item">
                   <span className="summary-icon">🏷️</span>
                   <span className="summary-label">Tags</span>
-                  <span className="summary-value">{tags.length}</span>
+                  <span className="summary-value">{tags.filter(t => t.enabled).length + customTags.length}</span>
                 </div>
               )}
               {incomes.length > 0 && (
