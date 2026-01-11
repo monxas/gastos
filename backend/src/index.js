@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import fastifyStatic from '@fastify/static';
+import multipart from '@fastify/multipart';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { initDB } from './db/init.js';
@@ -12,6 +13,12 @@ import accountsRoutes from './routes/accounts.js';
 import expensesRoutes from './routes/expenses.js';
 import syncRoutes from './routes/sync.js';
 import settingsRoutes from './routes/settings.js';
+import budgetsRoutes from './routes/budgets.js';
+import recurringRoutes from './routes/recurring.js';
+import incomesRoutes from './routes/incomes.js';
+import receiptsRoutes from './routes/receipts.js';
+import statementsRoutes from './routes/statements.js';
+import currencyRoutes from './routes/currency.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -27,6 +34,12 @@ await fastify.register(cors, {
 
 await fastify.register(jwt, {
   secret: process.env.JWT_SECRET || 'gastos-super-secret-key-change-in-production'
+});
+
+await fastify.register(multipart, {
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB max
+  }
 });
 
 fastify.decorate('authenticate', async function (request, reply) {
@@ -46,6 +59,12 @@ await fastify.register(accountsRoutes, { prefix: '/api/accounts' });
 await fastify.register(expensesRoutes, { prefix: '/api/expenses' });
 await fastify.register(syncRoutes, { prefix: '/api/sync' });
 await fastify.register(settingsRoutes, { prefix: '/api/settings' });
+await fastify.register(budgetsRoutes, { prefix: '/api/budgets' });
+await fastify.register(recurringRoutes, { prefix: '/api/recurring' });
+await fastify.register(incomesRoutes, { prefix: '/api/incomes' });
+await fastify.register(receiptsRoutes, { prefix: '/api/receipts' });
+await fastify.register(statementsRoutes, { prefix: '/api/statements' });
+await fastify.register(currencyRoutes, { prefix: '/api/currency' });
 
 // Serve frontend static files
 const frontendPath = process.env.FRONTEND_PATH || join(__dirname, '../../frontend/dist');

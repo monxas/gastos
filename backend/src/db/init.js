@@ -174,12 +174,57 @@ export function initDB() {
       UNIQUE(from_currency, to_currency, date)
     );
 
+    CREATE TABLE IF NOT EXISTS budgets (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      category_id TEXT,
+      amount REAL NOT NULL,
+      period TEXT NOT NULL DEFAULT 'monthly' CHECK (period IN ('monthly', 'weekly')),
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      deleted_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (category_id) REFERENCES categories(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS incomes (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      date TEXT NOT NULL,
+      amount REAL NOT NULL,
+      currency TEXT DEFAULT 'EUR',
+      account_id TEXT NOT NULL,
+      source TEXT,
+      note TEXT,
+      is_recurring INTEGER DEFAULT 0,
+      recurrent_rule_id TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      deleted_at TEXT,
+      version INTEGER DEFAULT 1,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (account_id) REFERENCES accounts(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS receipts (
+      id TEXT PRIMARY KEY,
+      expense_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      mimetype TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (expense_id) REFERENCES expenses(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses(user_id, date);
+    CREATE INDEX IF NOT EXISTS idx_incomes_user_date ON incomes(user_id, date);
     CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category_id);
     CREATE INDEX IF NOT EXISTS idx_expenses_account ON expenses(account_id);
     CREATE INDEX IF NOT EXISTS idx_categories_user ON categories(user_id);
     CREATE INDEX IF NOT EXISTS idx_tags_user ON tags(user_id);
     CREATE INDEX IF NOT EXISTS idx_accounts_user ON accounts(user_id);
+    CREATE INDEX IF NOT EXISTS idx_budgets_user ON budgets(user_id);
   `);
 
   console.log('Database initialized');

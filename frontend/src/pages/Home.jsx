@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import BottomSheet from '../components/BottomSheet';
-import ExpenseForm from '../components/ExpenseForm';
+import QuickExpenseForm from '../components/QuickExpenseForm';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -34,6 +34,8 @@ export default function Home() {
   const [summary, setSummary] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [recentExpenses, setRecentExpenses] = useState([]);
+  const [budgets, setBudgets] = useState([]);
+  const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
@@ -47,14 +49,18 @@ export default function Home() {
 
   const loadData = async () => {
     try {
-      const [summaryRes, expensesRes, accountsRes] = await Promise.all([
+      const [summaryRes, expensesRes, accountsRes, budgetsRes, insightsRes] = await Promise.all([
         api.get(`/expenses/summary/monthly?year=${year}&month=${month}`),
         api.get('/expenses?limit=5'),
-        api.get('/accounts')
+        api.get('/accounts'),
+        api.get('/budgets').catch(() => ({ budgets: [] })),
+        api.get('/budgets/insights').catch(() => ({ insights: [], summary: {} }))
       ]);
       setSummary(summaryRes.summary);
       setRecentExpenses(expensesRes.expenses);
       setAccounts(accountsRes.accounts);
+      setBudgets(budgetsRes.budgets);
+      setInsights(insightsRes);
     } catch (err) {
       console.error('Error loading data:', err);
     } finally {
@@ -91,6 +97,9 @@ export default function Home() {
     .filter(a => a.type === 'credit_card')
     .reduce((sum, acc) => sum + (acc.credit_limit || 0) + acc.current_balance, 0);
 
+  // Get budgets with issues
+  const budgetAlerts = budgets.filter(b => b.status === 'exceeded' || b.status === 'warning');
+
   if (loading) {
     return (
       <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
@@ -106,6 +115,66 @@ export default function Home() {
       </header>
 
       <main className="page">
+        {/* Insights Cards */}
+        {insights?.insights?.length > 0 && (
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '8px' }}>
+            {insights.insights.slice(0, 3).map((insight, idx) => (
+              <div
+                key={idx}
+                style={{
+                  minWidth: '200px',
+                  padding: '12px 16px',
+                  background: insight.type === 'warning' ? 'rgba(255, 149, 0, 0.1)' : 'rgba(52, 199, 89, 0.1)',
+                  borderRadius: 'var(--radius)',
+                  borderLeft: `3px solid ${insight.type === 'warning' ? 'var(--warning)' : 'var(--success)'}`
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '16px' }}>{insight.icon}</span>
+                  <span style={{ fontWeight: '600', fontSize: '13px' }}>{insight.title}</span>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{insight.description}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Budget Alerts */}
+        {budgetAlerts.length > 0 && (
+          <div style={{ marginBottom: '16px' }}>
+            {budgetAlerts.map(budget => (
+              <div
+                key={budget.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px',
+                  background: budget.status === 'exceeded' ? 'rgba(255, 59, 48, 0.1)' : 'rgba(255, 149, 0, 0.1)',
+                  borderRadius: 'var(--radius)',
+                  marginBottom: '8px'
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>{budget.category_icon || '💰'}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                    {budget.category_name || 'Total'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    {formatCurrency(budget.spent)} de {formatCurrency(budget.amount)}
+                  </div>
+                </div>
+                <div style={{
+                  fontWeight: '700',
+                  color: budget.status === 'exceeded' ? 'var(--danger)' : 'var(--warning)'
+                }}>
+                  {budget.percent.toFixed(0)}%
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Balance Total Card */}
         <div className="summary-card" style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)' }}>
           <div className="summary-label">Balance Total</div>
@@ -129,6 +198,107 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {/* Monthly Summary with Projection */}
+        {insights?.summary && (
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Gastos de {currentMonth}</span>
+              <span style={{ fontSize: '20px', fontWeight: '700' }}>{formatCurrency(summary?.total || 0)}</span>
+            </div>
+
+            {/* Comparison with last month */}
+            {insights.summary.previous_month > 0 && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '12px',
+                fontSize: '13px'
+              }}>
+                <span style={{
+                  color: insights.summary.change_percent > 0 ? 'var(--danger)' : 'var(--success)',
+                  fontWeight: '600'
+                }}>
+                  {insights.summary.change_percent > 0 ? '↑' : '↓'}
+                  {Math.abs(insights.summary.change_percent).toFixed(0)}%
+                </span>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  vs mes anterior ({formatCurrency(insights.summary.previous_month, true)})
+                </span>
+              </div>
+            )}
+
+            {/* Daily average and projection */}
+            <div style={{
+              display: 'flex',
+              gap: '16px',
+              padding: '12px',
+              background: 'var(--background)',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '12px'
+            }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '2px' }}>Promedio diario</div>
+                <div style={{ fontWeight: '600' }}>{formatCurrency(insights.summary.daily_average || 0)}</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '2px' }}>Proyeccion mes</div>
+                <div style={{ fontWeight: '600' }}>{formatCurrency(insights.summary.projected_total || 0)}</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '2px' }}>Dias restantes</div>
+                <div style={{ fontWeight: '600' }}>{insights.summary.days_remaining}</div>
+              </div>
+            </div>
+
+            {summary?.by_category?.length > 0 && (
+              <div>
+                {summary.by_category.slice(0, 4).map(cat => {
+                  const percent = summary.total > 0 ? (cat.total / summary.total) * 100 : 0;
+                  return (
+                    <div key={cat.id} style={{ marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>{cat.icon || '📦'}</span>
+                          {cat.name}
+                        </span>
+                        <span style={{ fontSize: '13px', fontWeight: '600' }}>{formatCurrency(cat.total)}</span>
+                      </div>
+                      <div style={{
+                        height: '6px',
+                        background: 'var(--border)',
+                        borderRadius: '3px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          height: '100%',
+                          width: `${percent}%`,
+                          background: cat.color || '#000',
+                          transition: 'width 0.3s ease'
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })}
+                {summary.by_category.length > 4 && (
+                  <button
+                    onClick={() => navigate('/reports')}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      fontSize: '13px',
+                      color: 'var(--text-secondary)',
+                      textAlign: 'center'
+                    }}
+                  >
+                    Ver todas las categorias →
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Accounts Grid */}
         {accounts.length > 0 && (
@@ -201,60 +371,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Monthly Spending Card */}
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">Gastos de {currentMonth}</span>
-            <span style={{ fontSize: '20px', fontWeight: '700' }}>{formatCurrency(summary?.total || 0)}</span>
-          </div>
-
-          {summary?.by_category?.length > 0 && (
-            <div style={{ marginTop: '8px' }}>
-              {summary.by_category.slice(0, 4).map(cat => {
-                const percent = summary.total > 0 ? (cat.total / summary.total) * 100 : 0;
-                return (
-                  <div key={cat.id} style={{ marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>{cat.icon || '📦'}</span>
-                        {cat.name}
-                      </span>
-                      <span style={{ fontSize: '13px', fontWeight: '600' }}>{formatCurrency(cat.total)}</span>
-                    </div>
-                    <div style={{
-                      height: '6px',
-                      background: 'var(--border)',
-                      borderRadius: '3px',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        height: '100%',
-                        width: `${percent}%`,
-                        background: cat.color || '#000',
-                        transition: 'width 0.3s ease'
-                      }} />
-                    </div>
-                  </div>
-                );
-              })}
-              {summary.by_category.length > 4 && (
-                <button
-                  onClick={() => navigate('/reports')}
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    fontSize: '13px',
-                    color: 'var(--text-secondary)',
-                    textAlign: 'center'
-                  }}
-                >
-                  Ver todas las categorias →
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* Recent Expenses */}
         {recentExpenses.length > 0 && (
           <div className="card">
@@ -298,7 +414,7 @@ export default function Home() {
       </button>
 
       <BottomSheet isOpen={showForm} onClose={() => setShowForm(false)} title="Nuevo Gasto">
-        <ExpenseForm
+        <QuickExpenseForm
           onSave={() => {
             setShowForm(false);
             loadData();

@@ -290,6 +290,64 @@ export default async function expensesRoutes(fastify, options) {
     return { expense };
   });
 
+  // Export expenses to CSV
+  fastify.get('/export/csv', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+    const { start_date, end_date, category_id, account_id } = request.query;
+    const db = getDB();
+
+    let query = `
+      SELECT e.date, e.amount_original, e.currency_original, e.amount_base, e.note,
+        c.name as category_name, a.name as account_name
+      FROM expenses e
+      JOIN categories c ON e.category_id = c.id
+      JOIN accounts a ON e.account_id = a.id
+      WHERE e.user_id = ? AND e.deleted_at IS NULL
+    `;
+    const params = [request.user.userId];
+
+    if (start_date) {
+      query += ' AND e.date >= ?';
+      params.push(start_date);
+    }
+    if (end_date) {
+      query += ' AND e.date <= ?';
+      params.push(end_date);
+    }
+    if (category_id) {
+      query += ' AND e.category_id = ?';
+      params.push(category_id);
+    }
+    if (account_id) {
+      query += ' AND e.account_id = ?';
+      params.push(account_id);
+    }
+
+    query += ' ORDER BY e.date DESC';
+    const expenses = db.prepare(query).all(...params);
+
+    // Generate CSV
+    const headers = ['Fecha', 'Monto', 'Moneda', 'Monto Base (EUR)', 'Categoria', 'Cuenta', 'Nota'];
+    const rows = expenses.map(e => [
+      e.date,
+      e.amount_original,
+      e.currency_original,
+      e.amount_base,
+      e.category_name,
+      e.account_name,
+      (e.note || '').replace(/"/g, '""')
+    ]);
+
+    let csv = headers.join(',') + '\n';
+    for (const row of rows) {
+      csv += row.map(v => typeof v === 'string' && v.includes(',') ? `"${v}"` : v).join(',') + '\n';
+    }
+
+    return reply
+      .header('Content-Type', 'text/csv')
+      .header('Content-Disposition', `attachment; filename="gastos-${start_date || 'all'}-${end_date || 'all'}.csv"`)
+      .send(csv);
+  });
+
   // Get monthly summary
   fastify.get('/summary/monthly', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { year, month } = request.query;

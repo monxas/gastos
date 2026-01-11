@@ -22,6 +22,16 @@ function FilterIcon() {
   );
 }
 
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+      <polyline points="7 10 12 15 17 10"></polyline>
+      <line x1="12" y1="15" x2="12" y2="3"></line>
+    </svg>
+  );
+}
+
 export default function Expenses() {
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -35,7 +45,9 @@ export default function Expenses() {
     category_id: '',
     account_id: '',
     start_date: '',
-    end_date: ''
+    end_date: '',
+    min_amount: '',
+    max_amount: ''
   });
 
   useEffect(() => {
@@ -68,6 +80,8 @@ export default function Expenses() {
       if (filters.account_id) query += `&account_id=${filters.account_id}`;
       if (filters.start_date) query += `&start_date=${filters.start_date}`;
       if (filters.end_date) query += `&end_date=${filters.end_date}`;
+      if (filters.min_amount) query += `&min_amount=${filters.min_amount}`;
+      if (filters.max_amount) query += `&max_amount=${filters.max_amount}`;
       if (search) query += `&search=${encodeURIComponent(search)}`;
 
       const res = await api.get(query);
@@ -77,6 +91,18 @@ export default function Expenses() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExport = () => {
+    let query = '/expenses/export/csv?';
+    if (filters.category_id) query += `&category_id=${filters.category_id}`;
+    if (filters.account_id) query += `&account_id=${filters.account_id}`;
+    if (filters.start_date) query += `&start_date=${filters.start_date}`;
+    if (filters.end_date) query += `&end_date=${filters.end_date}`;
+
+    // Get token for auth
+    const token = localStorage.getItem('token');
+    window.open(`${api.baseUrl}${query}`, '_blank');
   };
 
   const handleDelete = async (id) => {
@@ -114,23 +140,34 @@ export default function Expenses() {
   }, {});
 
   const clearFilters = () => {
-    setFilters({ category_id: '', account_id: '', start_date: '', end_date: '' });
+    setFilters({ category_id: '', account_id: '', start_date: '', end_date: '', min_amount: '', max_amount: '' });
     setSearch('');
   };
 
-  const hasFilters = filters.category_id || filters.account_id || filters.start_date || filters.end_date || search;
+  const hasFilters = filters.category_id || filters.account_id || filters.start_date || filters.end_date || filters.min_amount || filters.max_amount || search;
+
+  const totalFiltered = expenses.reduce((sum, e) => sum + e.amount_base, 0);
 
   return (
     <>
       <header className="page-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 className="page-title">Gastos</h1>
-          <button
-            onClick={() => setShowFilters(true)}
-            style={{ padding: '8px', borderRadius: 'var(--radius-sm)', background: hasFilters ? 'var(--primary)' : 'var(--surface)', color: hasFilters ? 'white' : 'inherit' }}
-          >
-            <FilterIcon />
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleExport}
+              style={{ padding: '8px', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}
+              title="Exportar CSV"
+            >
+              <DownloadIcon />
+            </button>
+            <button
+              onClick={() => setShowFilters(true)}
+              style={{ padding: '8px', borderRadius: 'var(--radius-sm)', background: hasFilters ? 'var(--primary)' : 'var(--surface)', color: hasFilters ? 'white' : 'inherit' }}
+            >
+              <FilterIcon />
+            </button>
+          </div>
         </div>
         <div style={{ marginTop: '12px' }}>
           <input
@@ -141,6 +178,12 @@ export default function Expenses() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        {expenses.length > 0 && (
+          <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
+            <span>{expenses.length} gastos</span>
+            <span style={{ fontWeight: '600', color: 'var(--danger)' }}>Total: {formatCurrency(totalFiltered)}</span>
+          </div>
+        )}
       </header>
 
       <main className="page">
@@ -279,6 +322,29 @@ export default function Expenses() {
             value={filters.end_date}
             onChange={(e) => setFilters(f => ({ ...f, end_date: e.target.value }))}
           />
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label className="form-label">Monto min</label>
+            <input
+              type="number"
+              className="form-input"
+              placeholder="0"
+              value={filters.min_amount}
+              onChange={(e) => setFilters(f => ({ ...f, min_amount: e.target.value }))}
+            />
+          </div>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label className="form-label">Monto max</label>
+            <input
+              type="number"
+              className="form-input"
+              placeholder="999999"
+              value={filters.max_amount}
+              onChange={(e) => setFilters(f => ({ ...f, max_amount: e.target.value }))}
+            />
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>

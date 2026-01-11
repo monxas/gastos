@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import BottomSheet from '../components/BottomSheet';
 
 function ChevronRight() {
@@ -19,17 +21,22 @@ const ACCOUNT_TYPE_LABELS = {
 };
 
 export default function Settings() {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [settings, setSettings] = useState(null);
   const [categories, setCategories] = useState([]);
   const [tags, setTags] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [budgets, setBudgets] = useState([]);
   const [showCategories, setShowCategories] = useState(false);
   const [showTags, setShowTags] = useState(false);
   const [showAccounts, setShowAccounts] = useState(false);
+  const [showBudgets, setShowBudgets] = useState(false);
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [showNewTag, setShowNewTag] = useState(false);
   const [showNewAccount, setShowNewAccount] = useState(false);
+  const [showNewBudget, setShowNewBudget] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: '', icon: '', color: '#000000' });
   const [newTag, setNewTag] = useState({ name: '', color: '#000000' });
   const [newAccount, setNewAccount] = useState({
@@ -41,6 +48,7 @@ export default function Settings() {
     card_payment_day: 15,
     credit_limit: 0
   });
+  const [newBudget, setNewBudget] = useState({ category_id: '', amount: '' });
 
   useEffect(() => {
     loadData();
@@ -48,16 +56,18 @@ export default function Settings() {
 
   const loadData = async () => {
     try {
-      const [settingsRes, catRes, tagRes, accRes] = await Promise.all([
+      const [settingsRes, catRes, tagRes, accRes, budgetsRes] = await Promise.all([
         api.get('/settings'),
         api.get('/categories'),
         api.get('/tags'),
-        api.get('/accounts')
+        api.get('/accounts'),
+        api.get('/budgets').catch(() => ({ budgets: [] }))
       ]);
       setSettings(settingsRes.settings);
       setCategories(catRes.categories);
       setTags(tagRes.tags);
       setAccounts(accRes.accounts);
+      setBudgets(budgetsRes.budgets);
     } catch (err) {
       console.error('Error loading data:', err);
     }
@@ -168,6 +178,33 @@ export default function Settings() {
     }
   };
 
+  const handleAddBudget = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/budgets', {
+        category_id: newBudget.category_id || null,
+        amount: parseFloat(newBudget.amount)
+      });
+      setNewBudget({ category_id: '', amount: '' });
+      setShowNewBudget(false);
+      const res = await api.get('/budgets');
+      setBudgets(res.budgets);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteBudget = async (id) => {
+    if (!confirm('Eliminar este presupuesto?')) return;
+    try {
+      await api.delete(`/budgets/${id}`);
+      const res = await api.get('/budgets');
+      setBudgets(res.budgets);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
@@ -176,6 +213,9 @@ export default function Settings() {
   };
 
   const bankAccounts = accounts.filter(a => a.type === 'bank');
+  const categoriesWithoutBudget = categories.filter(
+    c => !budgets.some(b => b.category_id === c.id)
+  );
 
   return (
     <>
@@ -206,6 +246,45 @@ export default function Settings() {
 
         <div className="card">
           <div className="card-header">
+            <span className="card-title">Apariencia</span>
+          </div>
+          <div className="list" style={{ background: 'transparent' }}>
+            <div className="list-item" style={{ background: 'transparent' }}>
+              <div className="list-item-content">
+                <div className="list-item-title">Modo oscuro</div>
+                <div className="list-item-subtitle">{isDark ? 'Activado' : 'Desactivado'}</div>
+              </div>
+              <button className={`toggle ${isDark ? 'active' : ''}`} onClick={toggleTheme} />
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">Funciones</span>
+          </div>
+          <div className="list" style={{ background: 'transparent' }}>
+            <div className="list-item" onClick={() => navigate('/recurring')} style={{ background: 'transparent', cursor: 'pointer' }}>
+              <div className="list-item-icon" style={{ background: 'var(--surface)' }}>🔄</div>
+              <div className="list-item-content">
+                <div className="list-item-title">Gastos recurrentes</div>
+                <div className="list-item-subtitle">Suscripciones, alquiler, etc.</div>
+              </div>
+              <ChevronRight />
+            </div>
+            <div className="list-item" onClick={() => navigate('/incomes')} style={{ background: 'transparent', cursor: 'pointer' }}>
+              <div className="list-item-icon" style={{ background: 'var(--surface)' }}>💰</div>
+              <div className="list-item-content">
+                <div className="list-item-title">Ingresos</div>
+                <div className="list-item-subtitle">Salario, freelance, etc.</div>
+              </div>
+              <ChevronRight />
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
             <span className="card-title">Datos</span>
           </div>
           <div className="list" style={{ background: 'transparent' }}>
@@ -227,6 +306,13 @@ export default function Settings() {
               <div className="list-item-content">
                 <div className="list-item-title">Cuentas</div>
                 <div className="list-item-subtitle">{accounts.length} cuentas</div>
+              </div>
+              <ChevronRight />
+            </div>
+            <div className="list-item" onClick={() => setShowBudgets(true)} style={{ background: 'transparent', cursor: 'pointer' }}>
+              <div className="list-item-content">
+                <div className="list-item-title">Presupuestos</div>
+                <div className="list-item-subtitle">{budgets.length} presupuestos activos</div>
               </div>
               <ChevronRight />
             </div>
@@ -517,6 +603,88 @@ export default function Settings() {
             </>
           )}
 
+          <button type="submit" className="btn btn-primary btn-block">Guardar</button>
+        </form>
+      </BottomSheet>
+
+      {/* Budgets Sheet */}
+      <BottomSheet isOpen={showBudgets} onClose={() => setShowBudgets(false)} title="Presupuestos">
+        <div className="list">
+          {budgets.map(budget => (
+            <div key={budget.id} className="list-item">
+              <div className="list-item-icon" style={{ background: budget.category_color || '#666' }}>
+                {budget.category_icon || '💰'}
+              </div>
+              <div className="list-item-content">
+                <div className="list-item-title">{budget.category_name || 'Total mensual'}</div>
+                <div className="list-item-subtitle">
+                  {formatCurrency(budget.spent)} de {formatCurrency(budget.amount)}
+                </div>
+                <div style={{
+                  height: '4px',
+                  background: 'var(--border)',
+                  borderRadius: '2px',
+                  marginTop: '6px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${Math.min(100, budget.percent)}%`,
+                    background: budget.status === 'exceeded' ? 'var(--danger)' : budget.status === 'warning' ? 'var(--warning)' : 'var(--success)',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', marginRight: '8px' }}>
+                <div style={{
+                  fontWeight: '700',
+                  color: budget.status === 'exceeded' ? 'var(--danger)' : budget.status === 'warning' ? 'var(--warning)' : 'inherit'
+                }}>
+                  {budget.percent.toFixed(0)}%
+                </div>
+              </div>
+              <button
+                onClick={() => handleDeleteBudget(budget.id)}
+                style={{ color: 'var(--danger)', padding: '8px' }}
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
+        <button className="btn btn-primary btn-block mt-16" onClick={() => setShowNewBudget(true)}>
+          Anadir Presupuesto
+        </button>
+      </BottomSheet>
+
+      {/* New Budget Sheet */}
+      <BottomSheet isOpen={showNewBudget} onClose={() => setShowNewBudget(false)} title="Nuevo Presupuesto">
+        <form onSubmit={handleAddBudget}>
+          <div className="form-group">
+            <label className="form-label">Categoria (opcional)</label>
+            <select
+              className="form-input"
+              value={newBudget.category_id}
+              onChange={(e) => setNewBudget(b => ({ ...b, category_id: e.target.value }))}
+            >
+              <option value="">Total mensual (todas las categorias)</option>
+              {categoriesWithoutBudget.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Monto mensual</label>
+            <input
+              type="number"
+              step="0.01"
+              className="form-input"
+              placeholder="0.00"
+              value={newBudget.amount}
+              onChange={(e) => setNewBudget(b => ({ ...b, amount: e.target.value }))}
+              required
+            />
+          </div>
           <button type="submit" className="btn btn-primary btn-block">Guardar</button>
         </form>
       </BottomSheet>
