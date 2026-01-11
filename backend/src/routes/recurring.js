@@ -41,7 +41,11 @@ export default async function recurringRoutes(fastify, options) {
 
     for (const rule of rules) {
       rule.tags = tagsMap[rule.id] || [];
-      rule.frequency_data = JSON.parse(rule.frequency_data);
+      try {
+        rule.frequency_data = JSON.parse(rule.frequency_data);
+      } catch {
+        rule.frequency_data = { frequency: 'monthly', interval: 1 };
+      }
     }
 
     return { rules };
@@ -225,7 +229,11 @@ export default async function recurringRoutes(fastify, options) {
     `).all(request.user.userId, futureDateStr);
 
     for (const rule of upcoming) {
-      rule.frequency_data = JSON.parse(rule.frequency_data);
+      try {
+        rule.frequency_data = JSON.parse(rule.frequency_data);
+      } catch {
+        rule.frequency_data = { frequency: 'monthly', interval: 1 };
+      }
     }
 
     return { upcoming };

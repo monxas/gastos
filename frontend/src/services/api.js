@@ -25,7 +25,15 @@ class Api {
       headers,
     });
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      if (!response.ok) {
+        throw new Error('Error en la solicitud');
+      }
+      return {};
+    }
 
     if (!response.ok) {
       throw new Error(data.error || 'Error en la solicitud');
