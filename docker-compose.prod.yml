@@ -1,0 +1,41 @@
+services:
+  gastos:
+    image: gastos:latest
+    build: .
+    container_name: gastos-app
+    volumes:
+      - gastos-data:/app/backend/data
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3000
+    restart: unless-stopped
+    networks:
+      - web
+    labels:
+      # Traefik v2 labels
+      - "traefik.enable=true"
+      - "traefik.http.routers.gastos.rule=Host(`gastos.monxas.casa`)"
+      - "traefik.http.routers.gastos.entrypoints=websecure"
+      - "traefik.http.routers.gastos.tls=true"
+      - "traefik.http.routers.gastos.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gastos.loadbalancer.server.port=3000"
+      # HTTP redirect to HTTPS
+      - "traefik.http.routers.gastos-http.rule=Host(`gastos.monxas.casa`)"
+      - "traefik.http.routers.gastos-http.entrypoints=web"
+      - "traefik.http.routers.gastos-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  web:
+    external: true
+
+volumes:
+  gastos-data:
+    driver: local

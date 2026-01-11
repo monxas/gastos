@@ -66,6 +66,11 @@ await fastify.register(receiptsRoutes, { prefix: '/api/receipts' });
 await fastify.register(statementsRoutes, { prefix: '/api/statements' });
 await fastify.register(currencyRoutes, { prefix: '/api/currency' });
 
+// Health check endpoint
+fastify.get('/health', async (request, reply) => {
+  return { status: 'ok', timestamp: new Date().toISOString() };
+});
+
 // Serve frontend static files
 const frontendPath = process.env.FRONTEND_PATH || join(__dirname, '../../frontend/dist');
 await fastify.register(fastifyStatic, {

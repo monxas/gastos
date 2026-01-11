@@ -1,81 +1,109 @@
-# Gastos - PWA de Control de Gastos
+# Gastos
 
-Aplicacion PWA mobile-first para gestion de gastos personales con soporte offline.
+Aplicacion PWA mobile-first para gestion de gastos personales con soporte offline y dark mode.
 
 ## Caracteristicas
 
-- Autenticacion con email/password
-- CRUD completo de gastos
-- Categorias y tags personalizables
-- Multiples cuentas (banco, efectivo, tarjeta)
-- Cierre de tarjeta con cargo automatico a cuenta bancaria
-- Informes y graficas mensuales
-- Export de datos en JSON
-- PWA instalable con soporte offline
+- **Gastos y categorias** - Registra gastos con categorias personalizables e iconos
+- **Multiples cuentas** - Banco, efectivo, tarjetas de debito y credito
+- **Tarjetas de credito** - Control de limite, cortes y pagos automaticos
+- **Presupuestos** - Define limites por categoria o total mensual con alertas
+- **Ingresos** - Seguimiento de salario, freelance, inversiones, etc.
+- **Gastos recurrentes** - Suscripciones automaticas (Netflix, Spotify, alquiler...)
+- **Informes** - Graficos por categoria, tendencias mensuales, comparativas
+- **Multi-moneda** - Soporte para conversion de divisas
+- **Dark mode** - Tema claro/oscuro automatico o manual
+- **PWA** - Instalable en movil, funciona offline
+- **Tags** - Etiquetas personalizables para filtrar gastos
+- **Recibos** - Adjunta fotos de recibos a los gastos
 
-## Requisitos
+## Stack
 
-- Docker y Docker Compose
+- **Frontend**: React 18, Vite, Recharts, date-fns
+- **Backend**: Node.js, Fastify, SQLite (better-sqlite3)
+- **PWA**: vite-plugin-pwa, Workbox
+- **Despliegue**: Docker
 
 ## Inicio Rapido
 
-### Con Docker Compose (recomendado)
+### Con Docker (recomendado)
 
 ```bash
-docker compose up -d
+docker-compose up -d --build
 ```
 
-La aplicacion estara disponible en http://localhost:3000
+La app estara disponible en http://localhost:8080
 
-### Con Docker directamente
+### Desarrollo local (sin Docker)
 
 ```bash
-# Construir imagen
-docker build -t gastos-app .
+# Backend
+cd backend && npm install && npm run dev
 
-# Ejecutar contenedor
-docker run -d -p 3000:3000 -v gastos-data:/app/backend/data --name gastos gastos-app
+# Frontend (en otra terminal)
+cd frontend && npm install && npm run dev
 ```
 
-## Desarrollo Local
+## Despliegue en Produccion
 
-### Backend
+### Con Traefik
+
+1. Crear archivo `.env`:
+```bash
+cp .env.example .env
+# Editar y poner un JWT_SECRET seguro:
+# openssl rand -base64 32
+```
+
+2. Crear red de Docker (si no existe):
+```bash
+docker network create web
+```
+
+3. Desplegar:
+```bash
+docker-compose -f docker-compose.prod.yml up -d --build
+```
+
+El archivo `docker-compose.prod.yml` incluye labels de Traefik para SSL automatico con Let's Encrypt.
+
+### Sin Traefik
 
 ```bash
-cd backend
-npm install
-npm run dev
+docker-compose up -d --build
 ```
 
-### Frontend
+Configura un reverse proxy (nginx, caddy) apuntando al puerto 8080.
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+## Variables de Entorno
+
+| Variable | Descripcion | Default |
+|----------|-------------|---------|
+| `JWT_SECRET` | Secreto para tokens JWT | (requerido en prod) |
+| `NODE_ENV` | Entorno | production |
+| `PORT` | Puerto del servidor | 3000 |
+| `DB_PATH` | Ruta base de datos SQLite | /app/backend/data/gastos.db |
 
 ## Estructura del Proyecto
 
 ```
 gastos/
 ├── backend/
-│   ├── src/
-│   │   ├── db/          # Inicializacion SQLite
-│   │   ├── routes/      # Rutas API
-│   │   ├── utils/       # Utilidades (seed)
-│   │   └── index.js     # Punto de entrada
-│   └── data/            # Base de datos SQLite
+│   └── src/
+│       ├── db/          # Inicializacion SQLite
+│       ├── routes/      # Endpoints API
+│       └── index.js     # Entry point
 ├── frontend/
-│   ├── src/
-│   │   ├── components/  # Componentes React
-│   │   ├── context/     # Contextos (Auth)
-│   │   ├── pages/       # Paginas
-│   │   ├── services/    # API y DB local
-│   │   └── styles/      # CSS
-│   └── public/          # Assets estaticos
-├── Dockerfile           # Build unificado
-└── docker-compose.yml   # Orquestacion
+│   └── src/
+│       ├── components/  # Componentes React
+│       ├── context/     # Auth y Theme contexts
+│       ├── pages/       # Paginas de la app
+│       ├── services/    # API client
+│       └── styles/      # CSS global
+├── docker-compose.yml      # Desarrollo
+├── docker-compose.prod.yml # Produccion con Traefik
+├── Dockerfile
+└── .env.example
 ```
 
 ## API Endpoints
@@ -90,20 +118,14 @@ gastos/
 - `POST /api/expenses` - Crear
 - `PUT /api/expenses/:id` - Actualizar
 - `DELETE /api/expenses/:id` - Eliminar
-- `POST /api/expenses/:id/duplicate` - Duplicar
 - `GET /api/expenses/summary/monthly` - Resumen mensual
+- `GET /api/expenses/export/csv` - Exportar CSV
 
 ### Categorias
 - `GET /api/categories` - Listar
 - `POST /api/categories` - Crear
 - `PUT /api/categories/:id` - Actualizar
 - `DELETE /api/categories/:id` - Eliminar
-
-### Tags
-- `GET /api/tags` - Listar
-- `POST /api/tags` - Crear
-- `PUT /api/tags/:id` - Actualizar
-- `DELETE /api/tags/:id` - Eliminar
 
 ### Cuentas
 - `GET /api/accounts` - Listar
@@ -112,26 +134,30 @@ gastos/
 - `DELETE /api/accounts/:id` - Eliminar
 - `POST /api/accounts/:id/close-statement` - Cerrar tarjeta
 
-### Configuracion
-- `GET /api/settings` - Obtener
-- `PUT /api/settings` - Actualizar
-- `GET /api/settings/export` - Exportar backup
+### Presupuestos
+- `GET /api/budgets` - Listar
+- `POST /api/budgets` - Crear
+- `GET /api/budgets/insights` - Alertas y tendencias
 
-### Sincronizacion
-- `GET /api/sync/pull` - Descargar datos
-- `POST /api/sync/push` - Subir cambios
+### Ingresos
+- `GET /api/incomes` - Listar
+- `POST /api/incomes` - Crear
+- `GET /api/incomes/summary` - Resumen por fuente
 
-## Variables de Entorno
+### Gastos Recurrentes
+- `GET /api/recurring` - Listar reglas
+- `POST /api/recurring` - Crear regla
+- `POST /api/recurring/process` - Procesar pendientes
+- `GET /api/recurring/upcoming` - Proximos gastos
 
-| Variable | Descripcion | Default |
-|----------|-------------|---------|
-| PORT | Puerto del servidor | 3000 |
-| JWT_SECRET | Clave secreta para JWT | (generada) |
-| DB_PATH | Ruta a la base de datos | ./data/gastos.db |
-| FRONTEND_PATH | Ruta al frontend compilado | ../frontend/dist |
+### Otros
+- `GET /api/tags` - Tags
+- `GET /api/currency/list` - Divisas disponibles
+- `GET /api/currency/rate` - Tipo de cambio
+- `GET /api/receipts/:id/image` - Imagen de recibo
+- `GET /api/settings` - Configuracion
+- `GET /health` - Health check
 
-## Tecnologias
+## Licencia
 
-- **Backend**: Node.js, Fastify, SQLite (better-sqlite3)
-- **Frontend**: React, Vite, Dexie (IndexedDB), Recharts
-- **PWA**: vite-plugin-pwa, Workbox
+MIT
