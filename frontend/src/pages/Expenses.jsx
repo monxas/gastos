@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { formatCurrency } from '../utils/format';
+import { useToast } from '../components/Toast';
 import BottomSheet from '../components/BottomSheet';
 import ExpenseForm from '../components/ExpenseForm';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
@@ -34,10 +35,12 @@ function DownloadIcon() {
 }
 
 export default function Expenses() {
+  const { addToast } = useToast();
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
@@ -109,15 +112,36 @@ export default function Expenses() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Eliminar este gasto?')) return;
+  const handleDelete = async (id, showConfirm = true) => {
+    if (showConfirm && !confirm('Eliminar este gasto?')) return;
     try {
       await api.delete(`/expenses/${id}`);
       loadExpenses();
+
+      // Show undo toast
+      addToast('Gasto eliminado', {
+        actionLabel: 'Deshacer',
+        action: async () => {
+          try {
+            await api.post(`/expenses/${id}/restore`);
+            loadExpenses();
+          } catch (err) {
+            console.error('Error restoring expense:', err);
+          }
+        },
+        duration: 5000
+      });
     } catch (err) {
       alert(err.message);
     }
   };
+
+  // Pull to refresh
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadExpenses();
+    setRefreshing(false);
+  }, [filters, search]);
 
   const formatDate = (dateStr) => {
     const date = parseISO(dateStr);
@@ -213,13 +237,16 @@ export default function Expenses() {
                       {expense.category_icon || '📦'}
                     </div>
                     <div className="list-item-content">
-                      <div className="list-item-title">{expense.note || expense.category_name}</div>
+                      <div className="list-item-title">{expense.category_name}</div>
                       <div className="list-item-subtitle">
                         {expense.account_name}
                         {expense.tags?.length > 0 && (
                           <span> · {expense.tags.map(t => t.name).join(', ')}</span>
                         )}
                       </div>
+                      {expense.note && (
+                        <div className="expense-note-preview">{expense.note}</div>
+                      )}
                     </div>
                     <div className="list-item-value negative">-{formatCurrency(expense.amount_base)}</div>
                   </div>
@@ -262,7 +289,7 @@ export default function Expenses() {
             <button
               className="btn btn-danger btn-block mt-16"
               onClick={() => {
-                handleDelete(editingExpense.id);
+                handleDelete(editingExpense.id, false);
                 setEditingExpense(null);
               }}
             >

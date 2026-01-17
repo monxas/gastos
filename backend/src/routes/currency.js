@@ -68,25 +68,53 @@ export default async function currencyRoutes(fastify, options) {
       return { from, to, rate: 1, date: date || new Date().toISOString().split('T')[0] };
     }
 
-    // Try to get from database first
+    // Try to get from database first (exact date match)
     const rateDate = date || new Date().toISOString().split('T')[0];
     let rate = db.prepare(`
-      SELECT rate FROM exchange_rates
+      SELECT rate, date FROM exchange_rates
       WHERE from_currency = ? AND to_currency = ? AND date = ?
     `).get(from, to, rateDate);
 
     if (rate) {
-      return { from, to, rate: rate.rate, date: rateDate, source: 'cached' };
+      return { from, to, rate: rate.rate, date: rate.date, source: 'cached' };
     }
 
     // Try reverse
     rate = db.prepare(`
-      SELECT rate FROM exchange_rates
+      SELECT rate, date FROM exchange_rates
       WHERE from_currency = ? AND to_currency = ? AND date = ?
     `).get(to, from, rateDate);
 
     if (rate) {
-      return { from, to, rate: 1 / rate.rate, date: rateDate, source: 'cached_reverse' };
+      return { from, to, rate: 1 / rate.rate, date: rate.date, source: 'cached_reverse' };
+    }
+
+    // If no specific date requested, check for recent rates (within 24h)
+    if (!date) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+      rate = db.prepare(`
+        SELECT rate, date FROM exchange_rates
+        WHERE from_currency = ? AND to_currency = ? AND date >= ?
+        ORDER BY date DESC LIMIT 1
+      `).get(from, to, yesterdayStr);
+
+      if (rate) {
+        return { from, to, rate: rate.rate, date: rate.date, source: 'cached_recent' };
+      }
+
+      // Try reverse recent
+      rate = db.prepare(`
+        SELECT rate, date FROM exchange_rates
+        WHERE from_currency = ? AND to_currency = ? AND date >= ?
+        ORDER BY date DESC LIMIT 1
+      `).get(to, from, yesterdayStr);
+
+      if (rate) {
+        return { from, to, rate: 1 / rate.rate, date: rate.date, source: 'cached_recent_reverse' };
+      }
     }
 
     // Fetch from API (using exchangerate.host - free, no API key needed)

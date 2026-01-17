@@ -4,6 +4,8 @@ import { api } from '../services/api';
 import { formatCurrency } from '../utils/format';
 import BottomSheet from '../components/BottomSheet';
 import QuickExpenseForm from '../components/QuickExpenseForm';
+import BudgetNotifications from '../components/BudgetNotifications';
+import { useBudgetNotifications } from '../hooks/useBudgetNotifications';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -39,6 +41,9 @@ export default function Home() {
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+
+  // Initialize budget notifications hook (handles checking and notifying)
+  useBudgetNotifications();
 
   const now = new Date();
   const year = now.getFullYear().toString();
@@ -83,9 +88,6 @@ export default function Home() {
     .filter(a => a.type === 'credit_card')
     .reduce((sum, acc) => sum + (acc.credit_limit || 0) + acc.current_balance, 0);
 
-  // Get budgets with issues
-  const budgetAlerts = budgets.filter(b => b.status === 'exceeded' || b.status === 'warning');
-
   if (loading) {
     return (
       <div className="page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
@@ -125,41 +127,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* Budget Alerts */}
-        {budgetAlerts.length > 0 && (
-          <div style={{ marginBottom: '16px' }}>
-            {budgetAlerts.map(budget => (
-              <div
-                key={budget.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px',
-                  background: budget.status === 'exceeded' ? 'rgba(255, 59, 48, 0.1)' : 'rgba(255, 149, 0, 0.1)',
-                  borderRadius: 'var(--radius)',
-                  marginBottom: '8px'
-                }}
-              >
-                <span style={{ fontSize: '24px' }}>{budget.category_icon || '💰'}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                    {budget.category_name || 'Total'}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    {formatCurrency(budget.spent)} de {formatCurrency(budget.amount)}
-                  </div>
-                </div>
-                <div style={{
-                  fontWeight: '700',
-                  color: budget.status === 'exceeded' ? 'var(--danger)' : 'var(--warning)'
-                }}>
-                  {budget.percent.toFixed(0)}%
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Budget Alerts - Enhanced Component */}
+        <BudgetNotifications />
 
         {/* Balance Total Card */}
         <div className="summary-card" style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)' }}>
@@ -371,7 +340,7 @@ export default function Home() {
             </div>
             <div className="list" style={{ background: 'transparent', margin: '0 -16px' }}>
               {recentExpenses.map(expense => (
-                <div key={expense.id} className="list-item" style={{ paddingLeft: 0, paddingRight: 0 }}>
+                <div key={expense.id} className="list-item" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
                   <div className="list-item-icon" style={{ background: expense.category_color || '#ccc', width: 36, height: 36 }}>
                     {expense.category_icon || '📦'}
                   </div>

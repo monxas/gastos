@@ -235,6 +235,12 @@ export function initDB() {
     // Column already exists
   }
 
+  try {
+    db.exec(`ALTER TABLE accounts ADD COLUMN is_favorite INTEGER DEFAULT 0`);
+  } catch (e) {
+    // Column already exists
+  }
+
   console.log('Database initialized');
   return db;
 }

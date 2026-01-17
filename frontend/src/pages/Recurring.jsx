@@ -192,7 +192,7 @@ export default function Recurring() {
             </div>
             <div className="list" style={{ background: 'transparent', margin: '0 -16px' }}>
               {upcoming.map(rule => (
-                <div key={rule.id} className="list-item" style={{ paddingLeft: 0, paddingRight: 0 }}>
+                <div key={rule.id} className="list-item" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
                   <div className="list-item-icon" style={{ background: rule.category_color || '#ccc' }}>
                     {rule.category_icon || '📦'}
                   </div>
@@ -231,7 +231,7 @@ export default function Recurring() {
                 <div
                   key={rule.id}
                   className="list-item"
-                  style={{ paddingLeft: 0, paddingRight: 0, cursor: 'pointer' }}
+                  style={{ paddingLeft: '16px', paddingRight: '16px', cursor: 'pointer' }}
                   onClick={() => handleEdit(rule)}
                 >
                   <div className="list-item-icon" style={{ background: rule.category_color || '#ccc' }}>

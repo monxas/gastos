@@ -52,8 +52,10 @@ export default async function expensesRoutes(fastify, options) {
       params.push(currency);
     }
     if (search) {
-      query += ' AND e.note LIKE ?';
-      params.push(`%${search}%`);
+      // Full-text search across note, category name, account name
+      query += ` AND (e.note LIKE ? OR c.name LIKE ? OR a.name LIKE ?)`;
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern);
     }
     if (is_recurrent !== undefined) {
       query += ' AND e.is_recurrent_instance = ?';
@@ -255,6 +257,25 @@ export default async function expensesRoutes(fastify, options) {
     `).run(id, request.user.userId);
 
     return { success: true };
+  });
+
+  // Restore deleted expense (undo)
+  fastify.post('/:id/restore', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+    const { id } = request.params;
+    const db = getDB();
+
+    const existing = db.prepare('SELECT * FROM expenses WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL').get(id, request.user.userId);
+    if (!existing) {
+      return reply.status(404).send({ error: 'Gasto no encontrado o no está eliminado' });
+    }
+
+    db.prepare(`
+      UPDATE expenses
+      SET deleted_at = NULL, updated_at = datetime('now'), version = version + 1
+      WHERE id = ? AND user_id = ?
+    `).run(id, request.user.userId);
+
+    return { success: true, message: 'Gasto restaurado' };
   });
 
   // Duplicate expense

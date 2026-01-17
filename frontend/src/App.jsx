@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { OfflineProvider } from './context/OfflineContext';
+import { ToastProvider } from './components/Toast';
 import { api } from './services/api';
+import OfflineIndicator from './components/OfflineIndicator';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -78,20 +81,25 @@ function PublicRoute({ children }) {
 export default function App() {
   return (
     <ThemeProvider>
-      <Routes>
-        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-        <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-        <Route path="/setup" element={<PrivateRoute skipSetupCheck={true}><SetupWizard /></PrivateRoute>} />
-        <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-          <Route index element={<Home />} />
-          <Route path="expenses" element={<Expenses />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="account/:id" element={<AccountDetail />} />
-          <Route path="recurring" element={<Recurring />} />
-          <Route path="incomes" element={<Incomes />} />
-        </Route>
-      </Routes>
+      <OfflineProvider>
+        <ToastProvider>
+          <OfflineIndicator />
+          <Routes>
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/setup" element={<PrivateRoute skipSetupCheck={true}><SetupWizard /></PrivateRoute>} />
+          <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
+            <Route index element={<Home />} />
+            <Route path="expenses" element={<Expenses />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="account/:id" element={<AccountDetail />} />
+            <Route path="recurring" element={<Recurring />} />
+            <Route path="incomes" element={<Incomes />} />
+            </Route>
+          </Routes>
+        </ToastProvider>
+      </OfflineProvider>
     </ThemeProvider>
   );
 }

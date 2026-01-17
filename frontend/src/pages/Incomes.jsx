@@ -21,6 +21,7 @@ export default function Incomes() {
   const [incomes, setIncomes] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [expensesSummary, setExpensesSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingIncome, setEditingIncome] = useState(null);
@@ -44,13 +45,15 @@ export default function Incomes() {
     const month = selectedMonth.getMonth() + 1;
 
     try {
-      const [incomesRes, summaryRes, accRes] = await Promise.all([
+      const [incomesRes, summaryRes, expSummaryRes, accRes] = await Promise.all([
         api.get(`/incomes?year=${year}&month=${month}`),
         api.get(`/incomes/summary?year=${year}&month=${month}`),
+        api.get(`/expenses/summary/monthly?year=${year}&month=${month}`),
         api.get('/accounts')
       ]);
       setIncomes(incomesRes.incomes);
       setSummary(summaryRes);
+      setExpensesSummary(expSummaryRes.summary);
       setAccounts(accRes.accounts);
     } catch (err) {
       console.error('Error loading data:', err);
@@ -157,11 +160,120 @@ export default function Incomes() {
           </button>
         </div>
 
-        {/* Summary Card */}
-        <div className="summary-card" style={{ background: 'linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)' }}>
-          <div className="summary-label">Ingresos del mes</div>
-          <div className="summary-value">{formatCurrency(summary?.total || 0)}</div>
+        {/* Balance Card - Income vs Expenses */}
+        <div className="card" style={{ marginBottom: '16px' }}>
+          <div className="card-header">
+            <span className="card-title">Balance del mes</span>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+            <div style={{
+              flex: 1,
+              padding: '16px',
+              background: 'rgba(46, 204, 113, 0.1)',
+              borderRadius: 'var(--radius)',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Ingresos</div>
+              <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--success)' }}>
+                +{formatCurrency(summary?.total || 0)}
+              </div>
+            </div>
+            <div style={{
+              flex: 1,
+              padding: '16px',
+              background: 'rgba(231, 76, 60, 0.1)',
+              borderRadius: 'var(--radius)',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Gastos</div>
+              <div style={{ fontSize: '20px', fontWeight: '700', color: 'var(--danger)' }}>
+                -{formatCurrency(expensesSummary?.total || 0)}
+              </div>
+            </div>
+          </div>
+          {/* Net Balance */}
+          {(() => {
+            const netBalance = (summary?.total || 0) - (expensesSummary?.total || 0);
+            const isPositive = netBalance >= 0;
+            return (
+              <div style={{
+                padding: '16px',
+                background: isPositive ? 'rgba(46, 204, 113, 0.15)' : 'rgba(231, 76, 60, 0.15)',
+                borderRadius: 'var(--radius)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  {isPositive ? 'Ahorro' : 'Deficit'}
+                </div>
+                <div style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  color: isPositive ? 'var(--success)' : 'var(--danger)'
+                }}>
+                  {isPositive ? '+' : ''}{formatCurrency(netBalance)}
+                </div>
+                {(summary?.total || 0) > 0 && (
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    {isPositive
+                      ? `${((netBalance / summary.total) * 100).toFixed(0)}% de tus ingresos`
+                      : `Gastas ${(((expensesSummary?.total || 0) / summary.total) * 100).toFixed(0)}% de tus ingresos`
+                    }
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
+
+        {/* Visual Bar Comparison */}
+        {((summary?.total || 0) > 0 || (expensesSummary?.total || 0) > 0) && (
+          <div className="card" style={{ marginBottom: '16px' }}>
+            <div className="card-header">
+              <span className="card-title">Comparativa visual</span>
+            </div>
+            {(() => {
+              const income = summary?.total || 0;
+              const expenses = expensesSummary?.total || 0;
+              const max = Math.max(income, expenses);
+              const incomePercent = max > 0 ? (income / max) * 100 : 0;
+              const expensesPercent = max > 0 ? (expenses / max) * 100 : 0;
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '13px' }}>💰 Ingresos</span>
+                      <span style={{ fontSize: '13px', fontWeight: '600' }}>{formatCurrency(income)}</span>
+                    </div>
+                    <div style={{ height: '24px', background: 'var(--background)', borderRadius: '12px', overflow: 'hidden' }}>
+                      <div style={{
+                        width: `${incomePercent}%`,
+                        height: '100%',
+                        background: 'linear-gradient(90deg, #2ecc71, #27ae60)',
+                        borderRadius: '12px',
+                        transition: 'width 0.5s ease'
+                      }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '13px' }}>💸 Gastos</span>
+                      <span style={{ fontSize: '13px', fontWeight: '600' }}>{formatCurrency(expenses)}</span>
+                    </div>
+                    <div style={{ height: '24px', background: 'var(--background)', borderRadius: '12px', overflow: 'hidden' }}>
+                      <div style={{
+                        width: `${expensesPercent}%`,
+                        height: '100%',
+                        background: 'linear-gradient(90deg, #e74c3c, #c0392b)',
+                        borderRadius: '12px',
+                        transition: 'width 0.5s ease'
+                      }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
 
         {/* By Source */}
         {summary?.by_source?.length > 0 && (
@@ -215,7 +327,7 @@ export default function Incomes() {
                   <div
                     key={income.id}
                     className="list-item"
-                    style={{ paddingLeft: 0, paddingRight: 0, cursor: 'pointer' }}
+                    style={{ paddingLeft: '16px', paddingRight: '16px', cursor: 'pointer' }}
                     onClick={() => handleEdit(income)}
                   >
                     <div className="list-item-icon" style={{ background: 'rgba(46, 204, 113, 0.2)', fontSize: '20px' }}>

@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { formatCurrency } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useBudgetNotifications } from '../hooks/useBudgetNotifications';
 import BottomSheet from '../components/BottomSheet';
 
 function ChevronRight() {
@@ -25,6 +26,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { requestPermission, isSupported, permission } = useBudgetNotifications();
   const [settings, setSettings] = useState(null);
   const [categories, setCategories] = useState([]);
   const [tags, setTags] = useState([]);
@@ -252,6 +254,44 @@ export default function Settings() {
             </div>
           </div>
         </div>
+
+        {isSupported && (
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Notificaciones</span>
+            </div>
+            <div className="list" style={{ background: 'transparent' }}>
+              <div className="list-item" style={{ background: 'transparent' }}>
+                <div className="list-item-icon" style={{ background: 'var(--surface)' }}>🔔</div>
+                <div className="list-item-content">
+                  <div className="list-item-title">Alertas de presupuesto</div>
+                  <div className="list-item-subtitle">
+                    {permission === 'granted'
+                      ? 'Activas - Recibiras alertas cuando excedas tus presupuestos'
+                      : permission === 'denied'
+                        ? 'Bloqueadas - Activalas en la configuracion del navegador'
+                        : 'Desactivadas - Activa para recibir alertas'
+                    }
+                  </div>
+                </div>
+                {permission === 'default' && (
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={requestPermission}
+                  >
+                    Activar
+                  </button>
+                )}
+                {permission === 'granted' && (
+                  <span style={{ color: 'var(--success)', fontSize: '20px' }}>✓</span>
+                )}
+                {permission === 'denied' && (
+                  <span style={{ color: 'var(--danger)', fontSize: '16px' }}>✗</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="card">
           <div className="card-header">

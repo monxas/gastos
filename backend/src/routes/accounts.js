@@ -17,7 +17,7 @@ export default async function accountsRoutes(fastify, options) {
         ) as total_expenses
       FROM accounts a
       WHERE a.user_id = ? AND a.deleted_at IS NULL
-      ORDER BY a.name ASC
+      ORDER BY a.is_favorite DESC, a.name ASC
     `).all(request.user.userId);
 
     // Calculate current balance for each account
@@ -151,6 +151,25 @@ export default async function accountsRoutes(fastify, options) {
 
     const account = db.prepare('SELECT * FROM accounts WHERE id = ?').get(id);
     return { account };
+  });
+
+  // Toggle favorite
+  fastify.post('/:id/favorite', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+    const { id } = request.params;
+    const db = getDB();
+
+    const existing = db.prepare('SELECT * FROM accounts WHERE id = ? AND user_id = ?').get(id, request.user.userId);
+    if (!existing) {
+      return reply.status(404).send({ error: 'Cuenta no encontrada' });
+    }
+
+    const newFavorite = existing.is_favorite ? 0 : 1;
+    db.prepare(`
+      UPDATE accounts SET is_favorite = ?, updated_at = datetime('now')
+      WHERE id = ? AND user_id = ?
+    `).run(newFavorite, id, request.user.userId);
+
+    return { success: true, is_favorite: newFavorite === 1 };
   });
 
   // Delete account (soft delete)
