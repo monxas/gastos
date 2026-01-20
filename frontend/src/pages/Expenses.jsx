@@ -38,6 +38,7 @@ export default function Expenses() {
   const { addToast } = useToast();
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -97,18 +98,78 @@ export default function Expenses() {
     }
   };
 
-  const handleExport = async () => {
-    let query = '/expenses/export/csv?';
-    if (filters.category_id) query += `&category_id=${filters.category_id}`;
-    if (filters.account_id) query += `&account_id=${filters.account_id}`;
-    if (filters.start_date) query += `&start_date=${filters.start_date}`;
-    if (filters.end_date) query += `&end_date=${filters.end_date}`;
+  const handleExport = async (format = 'csv') => {
+    const endpoint = format === 'excel' ? '/expenses/export/excel' : '/expenses/export/csv';
+    const params = new URLSearchParams();
+    if (filters.category_id) params.append('category_id', filters.category_id);
+    if (filters.account_id) params.append('account_id', filters.account_id);
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+    const query = params.toString() ? `${endpoint}?${params}` : endpoint;
 
-    const filename = `gastos-${filters.start_date || 'all'}-${filters.end_date || 'all'}.csv`;
+    const ext = format === 'excel' ? 'xlsx' : 'csv';
+    const filename = `gastos-${filters.start_date || 'all'}-${filters.end_date || 'all'}.${ext}`;
     try {
       await api.downloadFile(query, filename);
+      setShowExportMenu(false);
     } catch (err) {
       alert(err.message);
+    }
+  };
+
+  const handleExportAndShare = async (format = 'excel') => {
+    const endpoint = format === 'excel' ? '/expenses/export/excel' : '/expenses/export/csv';
+    const params = new URLSearchParams();
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+    const query = params.toString() ? `${endpoint}?${params}` : endpoint;
+
+    const ext = format === 'excel' ? 'xlsx' : 'csv';
+    const mimeType = format === 'excel'
+      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      : 'text/csv';
+    const filename = `gastos-${filters.start_date || 'all'}-${filters.end_date || 'all'}.${ext}`;
+
+    try {
+      setShowExportMenu(false);
+
+      // Get the file as blob
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api${query}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) throw new Error('Error descargando archivo');
+      const blob = await response.blob();
+      const file = new File([blob], filename, { type: mimeType });
+
+      // Check if Web Share API with files is supported
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Gastos Export',
+          text: `Archivo de gastos exportado - ${new Date().toLocaleDateString('es')}`
+        });
+        addToast('Archivo compartido');
+      } else {
+        // Fallback: download file and open mailto
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        window.URL.revokeObjectURL(url);
+
+        const subject = encodeURIComponent(`Gastos Export - ${new Date().toLocaleDateString('es')}`);
+        const body = encodeURIComponent(`Adjunto el archivo de gastos exportado.\n\nArchivo: ${filename}`);
+        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+
+        addToast('Archivo descargado. Adjuntalo al email manualmente.', { duration: 4000 });
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        alert(err.message);
+      }
     }
   };
 
@@ -175,13 +236,66 @@ export default function Expenses() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 className="page-title">Gastos</h1>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={handleExport}
-              style={{ padding: '8px', borderRadius: 'var(--radius-sm)', background: 'var(--surface)' }}
-              title="Exportar CSV"
-            >
-              <DownloadIcon />
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                style={{ padding: '8px', borderRadius: 'var(--radius-sm)', background: showExportMenu ? 'var(--primary)' : 'var(--surface)', color: showExportMenu ? 'white' : 'inherit' }}
+                title="Exportar"
+              >
+                <DownloadIcon />
+              </button>
+              {showExportMenu && (
+                <>
+                  <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+                    onClick={() => setShowExportMenu(false)}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: '4px',
+                    background: 'var(--surface)',
+                    borderRadius: 'var(--radius)',
+                    boxShadow: 'var(--shadow-lg)',
+                    minWidth: '200px',
+                    zIndex: 100,
+                    overflow: 'hidden'
+                  }}>
+                    <button
+                      onClick={() => handleExport('csv')}
+                      style={{ width: '100%', padding: '12px 16px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', color: 'var(--text-primary)' }}
+                    >
+                      <span style={{ fontSize: '18px' }}>📄</span>
+                      <div>
+                        <div style={{ fontWeight: '500' }}>CSV</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Solo gastos filtrados</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => handleExport('excel')}
+                      style={{ width: '100%', padding: '12px 16px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', color: 'var(--text-primary)', borderTop: '1px solid var(--border)' }}
+                    >
+                      <span style={{ fontSize: '18px' }}>📊</span>
+                      <div>
+                        <div style={{ fontWeight: '500' }}>Excel</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Todos los datos (7 hojas)</div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => handleExportAndShare('excel')}
+                      style={{ width: '100%', padding: '12px 16px', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', color: 'var(--text-primary)', borderTop: '1px solid var(--border)' }}
+                    >
+                      <span style={{ fontSize: '18px' }}>📤</span>
+                      <div>
+                        <div style={{ fontWeight: '500' }}>Compartir Excel</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Email, WhatsApp, etc.</div>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
             <button
               onClick={() => setShowFilters(true)}
               style={{ padding: '8px', borderRadius: 'var(--radius-sm)', background: hasFilters ? 'var(--primary)' : 'var(--surface)', color: hasFilters ? 'white' : 'inherit' }}

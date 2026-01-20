@@ -1,6 +1,7 @@
 import { getDB } from '../db/init.js';
 import { v4 as uuidv4 } from 'uuid';
 import { getMonthDateRange } from '../utils/date.js';
+import XLSX from 'xlsx';
 
 export default async function expensesRoutes(fastify, options) {
   // Get expenses with filters
@@ -382,6 +383,173 @@ export default async function expensesRoutes(fastify, options) {
       .header('Content-Type', 'text/csv')
       .header('Content-Disposition', `attachment; filename="gastos-${start_date || 'all'}-${end_date || 'all'}.csv"`)
       .send(csv);
+  });
+
+  // Export all data to Excel (multiple sheets)
+  fastify.get('/export/excel', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+    const { start_date, end_date } = request.query;
+    const db = getDB();
+    const userId = request.user.userId;
+
+    // Build date filter
+    let dateFilter = '';
+    const dateParams = [];
+    if (start_date) {
+      dateFilter += ' AND date >= ?';
+      dateParams.push(start_date);
+    }
+    if (end_date) {
+      dateFilter += ' AND date <= ?';
+      dateParams.push(end_date);
+    }
+
+    // Get expenses
+    const expenses = db.prepare(`
+      SELECT e.date, e.amount_original, e.currency_original, e.amount_base, e.note,
+        c.name as category_name, a.name as account_name,
+        GROUP_CONCAT(t.name, ', ') as tags
+      FROM expenses e
+      JOIN categories c ON e.category_id = c.id
+      JOIN accounts a ON e.account_id = a.id
+      LEFT JOIN expense_tags et ON e.id = et.expense_id
+      LEFT JOIN tags t ON et.tag_id = t.id
+      WHERE e.user_id = ? AND e.deleted_at IS NULL ${dateFilter}
+      GROUP BY e.id
+      ORDER BY e.date DESC
+    `).all(userId, ...dateParams);
+
+    // Get incomes (note: incomes table doesn't have amount_base, just amount and currency)
+    const incomes = db.prepare(`
+      SELECT i.date, i.amount, i.currency, i.note, i.source,
+        a.name as account_name
+      FROM incomes i
+      JOIN accounts a ON i.account_id = a.id
+      WHERE i.user_id = ? AND i.deleted_at IS NULL ${dateFilter}
+      ORDER BY i.date DESC
+    `).all(userId, ...dateParams);
+
+    // Get categories
+    const categories = db.prepare(`
+      SELECT name, icon, color
+      FROM categories
+      WHERE user_id = ? AND deleted_at IS NULL
+      ORDER BY name
+    `).all(userId);
+
+    // Get accounts with computed balance
+    const accountsRaw = db.prepare(`
+      SELECT a.id, a.name, a.type, a.currency, a.initial_balance, a.credit_limit,
+        COALESCE((SELECT SUM(e.amount_base) FROM expenses e WHERE e.account_id = a.id AND e.deleted_at IS NULL), 0) as total_expenses,
+        COALESCE((SELECT SUM(i.amount) FROM incomes i WHERE i.account_id = a.id AND i.deleted_at IS NULL), 0) as total_incomes
+      FROM accounts a
+      WHERE a.user_id = ? AND a.deleted_at IS NULL
+      ORDER BY a.name
+    `).all(userId);
+
+    const accounts = accountsRaw.map(a => {
+      let current_balance;
+      if (a.type === 'credit_card') {
+        current_balance = -a.total_expenses;
+      } else {
+        current_balance = a.initial_balance + a.total_incomes - a.total_expenses;
+      }
+      return { ...a, current_balance };
+    });
+
+    // Get tags
+    const tags = db.prepare(`
+      SELECT name
+      FROM tags
+      WHERE user_id = ? AND deleted_at IS NULL
+      ORDER BY name
+    `).all(userId);
+
+    // Get budgets
+    const budgets = db.prepare(`
+      SELECT b.amount, b.period, c.name as category_name
+      FROM budgets b
+      LEFT JOIN categories c ON b.category_id = c.id
+      WHERE b.user_id = ? AND b.deleted_at IS NULL
+    `).all(userId);
+
+    // Get recurring rules
+    const recurring = db.prepare(`
+      SELECT r.name, r.amount, r.currency, r.frequency_data, r.next_run_at,
+        c.name as category_name, a.name as account_name
+      FROM recurrent_rules r
+      JOIN categories c ON r.category_id = c.id
+      JOIN accounts a ON r.account_id = a.id
+      WHERE r.user_id = ? AND r.deleted_at IS NULL AND r.is_active = 1
+      ORDER BY r.next_run_at
+    `).all(userId);
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+
+    // Gastos sheet
+    const expensesData = [
+      ['Fecha', 'Monto', 'Moneda', 'Monto Base (EUR)', 'Categoria', 'Cuenta', 'Etiquetas', 'Nota'],
+      ...expenses.map(e => [e.date, e.amount_original, e.currency_original, e.amount_base, e.category_name, e.account_name, e.tags || '', e.note || ''])
+    ];
+    const wsExpenses = XLSX.utils.aoa_to_sheet(expensesData);
+    XLSX.utils.book_append_sheet(wb, wsExpenses, 'Gastos');
+
+    // Ingresos sheet
+    const incomesData = [
+      ['Fecha', 'Monto', 'Moneda', 'Fuente', 'Cuenta', 'Nota'],
+      ...incomes.map(i => [i.date, i.amount, i.currency, i.source || '', i.account_name, i.note || ''])
+    ];
+    const wsIncomes = XLSX.utils.aoa_to_sheet(incomesData);
+    XLSX.utils.book_append_sheet(wb, wsIncomes, 'Ingresos');
+
+    // Categorias sheet
+    const categoriesData = [
+      ['Nombre', 'Icono', 'Color'],
+      ...categories.map(c => [c.name, c.icon, c.color])
+    ];
+    const wsCategories = XLSX.utils.aoa_to_sheet(categoriesData);
+    XLSX.utils.book_append_sheet(wb, wsCategories, 'Categorias');
+
+    // Cuentas sheet
+    const accountsData = [
+      ['Nombre', 'Tipo', 'Moneda', 'Balance', 'Limite Credito'],
+      ...accounts.map(a => [a.name, a.type, a.currency, a.current_balance, a.credit_limit || ''])
+    ];
+    const wsAccounts = XLSX.utils.aoa_to_sheet(accountsData);
+    XLSX.utils.book_append_sheet(wb, wsAccounts, 'Cuentas');
+
+    // Etiquetas sheet
+    const tagsData = [
+      ['Nombre'],
+      ...tags.map(t => [t.name])
+    ];
+    const wsTags = XLSX.utils.aoa_to_sheet(tagsData);
+    XLSX.utils.book_append_sheet(wb, wsTags, 'Etiquetas');
+
+    // Presupuestos sheet
+    const budgetsData = [
+      ['Categoria', 'Monto', 'Periodo'],
+      ...budgets.map(b => [b.category_name || 'Total', b.amount, b.period])
+    ];
+    const wsBudgets = XLSX.utils.aoa_to_sheet(budgetsData);
+    XLSX.utils.book_append_sheet(wb, wsBudgets, 'Presupuestos');
+
+    // Recurrentes sheet
+    const recurringData = [
+      ['Nombre', 'Monto', 'Moneda', 'Frecuencia', 'Proxima fecha', 'Categoria', 'Cuenta'],
+      ...recurring.map(r => [r.name, r.amount, r.currency, r.frequency_data, r.next_run_at, r.category_name, r.account_name])
+    ];
+    const wsRecurring = XLSX.utils.aoa_to_sheet(recurringData);
+    XLSX.utils.book_append_sheet(wb, wsRecurring, 'Recurrentes');
+
+    // Generate buffer
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const filename = `gastos-${start_date || 'all'}-${end_date || 'all'}.xlsx`;
+
+    return reply
+      .header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      .header('Content-Disposition', `attachment; filename="${filename}"`)
+      .send(buffer);
   });
 
   // Get monthly summary
